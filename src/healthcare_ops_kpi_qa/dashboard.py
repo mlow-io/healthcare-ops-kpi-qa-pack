@@ -123,14 +123,14 @@ def build_tie_out_frame(
     overall_rows = snapshots[snapshots["market_name"].isna() & snapshots["team_code"].isna()]
     return pd.DataFrame(
         [
-            {"control": "Selected source files", "value": len(source_files), "evidence": "dim_source_file"},
-            {"control": "Selected source rows", "value": source_rows, "evidence": "dim_source_file.row_count"},
-            {"control": "Run staged rows", "value": int(run_row["staged_row_count"]), "evidence": "etl_run.staged_row_count"},
-            {"control": "Selected market/team canonical events", "value": len(events), "evidence": "fact_provider_ops_event"},
-            {"control": "Overall KPI snapshots", "value": len(overall_rows), "evidence": "fact_kpi_snapshot"},
-            {"control": "Selected-cut KPI snapshots", "value": len(snapshots), "evidence": "fact_kpi_snapshot"},
-            {"control": "Validation issues", "value": len(issues), "evidence": "fact_validation_issue"},
-            {"control": "Workbook export", "value": "available" if workbook_available else "not found", "evidence": "outputs workbook"},
+            {"control": "Selected source files", "value": len(source_files), "status": None, "evidence": "dim_source_file"},
+            {"control": "Selected source rows", "value": source_rows, "status": None, "evidence": "dim_source_file.row_count"},
+            {"control": "Run staged rows", "value": int(run_row["staged_row_count"]), "status": None, "evidence": "etl_run.staged_row_count"},
+            {"control": "Selected market/team canonical events", "value": len(events), "status": None, "evidence": "fact_provider_ops_event"},
+            {"control": "Overall KPI snapshots", "value": len(overall_rows), "status": None, "evidence": "fact_kpi_snapshot"},
+            {"control": "Selected-cut KPI snapshots", "value": len(snapshots), "status": None, "evidence": "fact_kpi_snapshot"},
+            {"control": "Validation issues", "value": len(issues), "status": None, "evidence": "fact_validation_issue"},
+            {"control": "Workbook export", "value": None, "status": "available" if workbook_available else "not found", "evidence": "outputs workbook"},
         ]
     )
 
@@ -537,8 +537,7 @@ def render_review_packet(run_row: pd.Series, bundle: dict[str, pd.DataFrame]) ->
                 st.json(json.loads(str(latest["prompt_payload_json"])))
 
     st.markdown("#### Selected-run package")
-    st.dataframe(
-        pd.DataFrame(
+    packet_metadata = pd.DataFrame(
             [
                 {"field": "run_id", "value": int(run_row["run_id"])},
                 {"field": "reporting_period", "value": run_row["reporting_period"]},
@@ -547,7 +546,9 @@ def render_review_packet(run_row: pd.Series, bundle: dict[str, pd.DataFrame]) ->
                 {"field": "source_files", "value": int(run_row["source_file_count"])},
                 {"field": "validation_issues", "value": int(run_row["validation_issue_count"])},
             ]
-        ),
+        ).astype({"value": "string"})
+    st.dataframe(
+        packet_metadata,
         width="stretch",
         hide_index=True,
     )

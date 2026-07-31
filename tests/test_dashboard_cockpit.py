@@ -89,11 +89,13 @@ def test_tie_out_frame_connects_source_run_mart_and_workbook_counts() -> None:
 
     tie_out = build_tie_out_frame(run_row, source_files, events, _snapshot_frame(), issues, workbook_available=True)
     values = dict(zip(tie_out["control"], tie_out["value"], strict=True))
+    statuses = dict(zip(tie_out["control"], tie_out["status"], strict=True))
 
     assert values["Selected source rows"] == 13
     assert values["Run staged rows"] == 13
     assert values["Selected market/team canonical events"] == 5
-    assert values["Workbook export"] == "available"
+    assert pd.isna(values["Workbook export"])
+    assert statuses["Workbook export"] == "available"
 
 
 def test_exported_workbook_summary_matches_persisted_overall_snapshot(tmp_path, monkeypatch) -> None:
