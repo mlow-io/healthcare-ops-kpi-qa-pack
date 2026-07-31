@@ -1,0 +1,7 @@
+2026-04 operations summary:
+Processed 5 records with a 20% completion rate.
+Completion rate changed by -20% versus the prior period.
+Open backlog closed the month at 4 records, with 1 over SLA.
+Open backlog changed by +1 versus the prior period.
+QA issue rate was 20%; top logged issue type was `invalid_npi_checksum` (3 occurrence(s)).
+Nashville had the highest QA issue rate at 50%.

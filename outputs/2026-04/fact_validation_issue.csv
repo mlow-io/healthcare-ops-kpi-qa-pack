@@ -1,0 +1,15 @@
+run_id,source_file_id,stg_record_id,issue_type,severity,row_identifier,issue_message,status,created_at
+3,7,30,invalid_npi_format,error,provider_roster_2026_04.csv:4,NPI `12345` must contain exactly 10 digits.,open,2026-07-31 05:32:53.959438
+3,7,31,missing_required_field,error,provider_roster_2026_04.csv:5,Required field `provider_npi` is missing.,open,2026-07-31 05:32:53.959455
+3,7,32,invalid_npi_checksum,warning,provider_roster_2026_04.csv:6,NPI `1234567890` failed checksum validation.,open,2026-07-31 05:32:53.959475
+3,7,32,invalid_status_value,warning,provider_roster_2026_04.csv:6,Status `mystery_status` is not in the configured status set.,open,2026-07-31 05:32:53.959481
+3,8,35,invalid_npi_format,error,onboarding_tracker_2026_04.xlsx:3,NPI `12345` must contain exactly 10 digits.,open,2026-07-31 05:32:53.959524
+3,8,35,invalid_date_sequence,error,onboarding_tracker_2026_04.xlsx:3,Completed date cannot be earlier than received date.,open,2026-07-31 05:32:53.959531
+3,8,36,invalid_npi_checksum,warning,onboarding_tracker_2026_04.xlsx:4,NPI `1234567890` failed checksum validation.,open,2026-07-31 05:32:53.959547
+3,8,36,invalid_status_value,warning,onboarding_tracker_2026_04.xlsx:4,Status `mystery_status` is not in the configured status set.,open,2026-07-31 05:32:53.959552
+3,9,39,invalid_npi_checksum,warning,directory_audit_2026_04.csv:3,NPI `1234567890` failed checksum validation.,open,2026-07-31 05:32:53.959596
+3,7,28,duplicate_provider_market,warning,provider_roster_2026_04.csv:2,Duplicate provider-market-workflow combination detected within the same source type.,open,2026-07-31 05:32:53.960269
+3,7,29,duplicate_provider_market,warning,provider_roster_2026_04.csv:3,Duplicate provider-market-workflow combination detected within the same source type.,open,2026-07-31 05:32:53.960286
+3,9,39,audit_onboarding_mismatch,warning,directory_audit_2026_04.csv:3,Directory audit shows `published` before onboarding is completed.,open,2026-07-31 05:32:53.963412
+3,9,39,audit_onboarding_mismatch,warning,directory_audit_2026_04.csv:3,Passing audit result found while onboarding is still incomplete.,open,2026-07-31 05:32:53.963418
+3,,,stale_backlog_record,warning,1234567802,"Provider `1234567802` backlog age is 60 days, which exceeds the SLA threshold of 30.",open,2026-07-31 05:32:53.977275
