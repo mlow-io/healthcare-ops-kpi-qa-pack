@@ -1,0 +1,65 @@
+version: 1
+
+kpis:
+  - code: total_records_received
+    name: Total Records Received
+    display_format: integer
+    target_direction: higher_is_better
+    owner_role: provider_operations_manager
+    formula: count(*)
+
+  - code: completed_records
+    name: Completed Records
+    display_format: integer
+    target_direction: higher_is_better
+    owner_role: provider_operations_manager
+    formula: sum(completion_flag)
+
+  - code: completion_rate
+    name: Completion Rate
+    display_format: percent
+    target_direction: higher_is_better
+    owner_role: provider_operations_manager
+    formula: sum(completion_flag) / count(*)
+
+  - code: avg_turnaround_days
+    name: Average Turnaround Days
+    display_format: days
+    target_direction: lower_is_better
+    owner_role: provider_data_analyst
+    formula: avg(turnaround_days where completion_flag = true)
+
+  - code: open_backlog_count
+    name: Open Backlog Count
+    display_format: integer
+    target_direction: lower_is_better
+    owner_role: provider_operations_manager
+    formula: sum(backlog_flag)
+
+  - code: backlog_over_sla_count
+    name: Backlog Over SLA Count
+    display_format: integer
+    target_direction: lower_is_better
+    owner_role: provider_operations_manager
+    formula: sum(backlog_over_sla_flag)
+
+  - code: qa_issue_rate
+    name: QA Issue Rate
+    display_format: percent
+    target_direction: lower_is_better
+    owner_role: provider_data_analyst
+    formula: sum(qa_issue_flag) / count(*)
+
+  - code: required_field_completeness_rate
+    name: Required Field Completeness Rate
+    display_format: percent
+    target_direction: higher_is_better
+    owner_role: provider_data_analyst
+    formula: sum(required_field_complete_flag) / count(*)
+
+  - code: unique_npi_rate
+    name: Unique NPI Rate
+    display_format: percent
+    target_direction: higher_is_better
+    owner_role: provider_data_analyst
+    formula: count(distinct provider_npi) / count(*)

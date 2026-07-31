@@ -1,0 +1,100 @@
+version: 1
+reporting_grain: monthly
+
+status_values:
+  open:
+    - pending
+    - received
+    - in_review
+    - onboarding
+  complete:
+    - completed
+    - ready_for_directory
+    - published
+
+files:
+  provider_roster:
+    pattern: "provider_roster_*.csv"
+    required: true
+    loader: csv
+    canonical_fields:
+      provider_name:
+        - provider_name
+        - Provider Name
+      provider_npi:
+        - provider_npi
+        - NPI
+      specialty_name:
+        - specialty_name
+        - Specialty
+      market_name:
+        - market_name
+        - County
+        - Market
+      team_code:
+        - team_code
+        - Team
+      workflow_status:
+        - workflow_status
+        - Contract Status
+        - Roster Status
+      effective_date:
+        - effective_date
+        - Effective Date
+      phone_number:
+        - phone_number
+        - Phone
+      address_line:
+        - address_line
+        - Address
+
+  onboarding_tracker:
+    pattern: "onboarding_tracker_*.xlsx"
+    required: true
+    loader: excel
+    canonical_fields:
+      provider_npi:
+        - provider_npi
+        - NPI
+      market_name:
+        - market_name
+        - Market
+      team_code:
+        - team_code
+        - Team
+      owner_name:
+        - owner_name
+        - Owner
+      received_date:
+        - received_date
+        - Intake Date
+      completed_date:
+        - completed_date
+        - Completion Date
+      workflow_status:
+        - workflow_status
+        - Onboarding Stage
+
+  directory_audit:
+    pattern: "directory_audit_*.csv"
+    required: true
+    loader: csv
+    canonical_fields:
+      provider_npi:
+        - provider_npi
+        - NPI
+      market_name:
+        - market_name
+        - Market
+      audit_date:
+        - audit_date
+        - Audit Date
+      audit_result:
+        - audit_result
+        - Audit Result
+      audit_issue_type:
+        - audit_issue_type
+        - Issue Type
+      workflow_status:
+        - workflow_status
+        - Directory Status

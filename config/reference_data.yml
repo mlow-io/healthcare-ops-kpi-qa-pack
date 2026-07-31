@@ -1,0 +1,64 @@
+version: 1
+
+markets:
+  Nashville:
+    state_code: TN
+    region_name: Middle Tennessee
+    allowed_teams:
+      - TEAM_A
+  Knoxville:
+    state_code: TN
+    region_name: East Tennessee
+    allowed_teams:
+      - TEAM_B
+  Memphis:
+    state_code: TN
+    region_name: West Tennessee
+    allowed_teams:
+      - TEAM_B
+  Chattanooga:
+    state_code: TN
+    region_name: Southeast Tennessee
+    allowed_teams:
+      - TEAM_C
+
+teams:
+  TEAM_A:
+    team_name: Provider Onboarding East
+    manager_name: Avery Brooks
+  TEAM_B:
+    team_name: Provider Ops Central
+    manager_name: Jordan Lee
+  TEAM_C:
+    team_name: Directory QA South
+    manager_name: Riley Morgan
+
+providers:
+  "1234567893":
+    provider_name: Allied Cardiology Group
+    market_name: Nashville
+    team_code: TEAM_A
+    specialty_name: Cardiology
+  "1234567802":
+    provider_name: Children's Primary Partners
+    market_name: Nashville
+    team_code: TEAM_A
+    specialty_name: Pediatrics
+  "1234567890":
+    provider_name: Chattanooga Family Care
+    market_name: Chattanooga
+    team_code: TEAM_C
+    specialty_name: Family Medicine
+
+status_transitions:
+  onboarding_tracker:
+    open_statuses:
+      - pending
+      - in_review
+      - onboarding
+    complete_statuses:
+      - completed
+      - ready_for_directory
+  directory_audit:
+    published_statuses:
+      - published
