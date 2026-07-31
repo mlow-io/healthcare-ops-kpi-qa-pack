@@ -2,9 +2,9 @@
 
 ## Primary visuals
 
-- Dashboard overview: `docs/demo_assets/dashboard_overview.png`
-- Dashboard forecast: `docs/demo_assets/dashboard_forecast.png`
-- Dashboard commentary: `docs/demo_assets/dashboard_commentary.png`
+- Dashboard overview: `docs/demo_assets/dashboard_overview.png` — selected-run health, headline KPI context, and persisted snapshot values.
+- Dashboard forecast: `docs/demo_assets/dashboard_forecast.png` — transparent rolling-average assumptions, limits, and persisted forecast rows.
+- Dashboard commentary: `docs/demo_assets/dashboard_commentary.png` — canonical deterministic commentary beside separately labeled optional LLM draft status.
 
 ## Versioned output evidence
 
@@ -33,3 +33,4 @@ Use the latest successful run for each period from `etl_run` when reviewing tren
 - Forecasts use a transparent three-period rolling average.
 - PostgreSQL is optional and is not part of the default demo path.
 - Model-assisted commentary is optional and requires human review.
+- The cockpit reads persisted run outputs and configuration; it does not recalculate KPI values in the user interface.

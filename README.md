@@ -26,7 +26,7 @@ A built-in three-period demo dataset is available for `2026-02`, `2026-03`, and 
 - Validation report with row-level issues and run-level counts
 - KPI mart with monthly snapshots by market and team
 - Excel workbook with summary, detail, variance, tie-out, and exceptions tabs
-- Dashboard views for overview, trends, segment cuts, and QA exceptions
+- Monthly Operations Cockpit with persisted run context, KPI definitions, trend and segment analysis, QA tie-outs, forecast assumptions, and a review packet
 - Draft commentary for a monthly operations review
 
 ## Architecture
@@ -102,6 +102,19 @@ streamlit run src/healthcare_ops_kpi_qa/dashboard.py
 ```
 
 Run these commands from the repository root. The deterministic demo does not require credentials or external services.
+
+## Monthly Operations Cockpit
+
+The Streamlit cockpit is a read-only operational review surface over persisted SQLite mart data. Select one successful reporting run, then apply market, team, and source filters where the underlying V1 data grain supports them.
+
+- **Executive summary:** run health, headline KPI values, prior-period context, and persisted variance.
+- **KPI definitions:** formulas and display rules from `config/kpi_definitions.yml`, plus selected-cut numerator/denominator detail.
+- **Trends and market/team:** latest successful run per period with explicit unavailable states for unsupported combined cuts.
+- **QA & tie-outs:** source-file inventory, staged row count, canonical events, persisted snapshots, validation exceptions, and workbook availability.
+- **Forecast assumptions:** transparent three-period rolling-average forecasts and their limits.
+- **Review packet:** deterministic commentary, separately labeled optional LLM draft status, selected-run metadata, and matching downloads.
+
+All displayed operations data is synthetic. The cockpit does not recalculate KPIs, alter the refresh pipeline, or display local file paths.
 
 The refresh writes:
 

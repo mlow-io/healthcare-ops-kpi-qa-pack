@@ -263,12 +263,13 @@ Persisted draft artifact contract:
 
 Current dashboard pages:
 
-- Overview
+- Executive summary
+- KPI definitions
 - Trends
-- Breakdowns
-- Forecasts
-- Validation
-- Executive review
+- Market & team
+- QA & tie-outs
+- Forecast assumptions
+- Review packet
 
 Preferred implementation: Streamlit with SQL-backed extracts from the mart tables.
 
@@ -276,4 +277,8 @@ Current status:
 
 - implemented
 - trend views use the latest successful run per reporting period rather than every rerun
-- executive review shows deterministic commentary plus the latest LLM draft metadata when available
+- persistent run, market, team, and source filters are applied only where the persisted V1 data grain supports them
+- executive summary uses persisted KPI snapshot values, prior values, and variances
+- KPI formulas are read from `config/kpi_definitions.yml` rather than duplicated in the dashboard
+- QA controls connect source-file inventory, staged rows, canonical events, validation issues, persisted snapshots, and workbook availability
+- review packet shows deterministic commentary separately from optional LLM draft metadata and provides selected-run downloads
