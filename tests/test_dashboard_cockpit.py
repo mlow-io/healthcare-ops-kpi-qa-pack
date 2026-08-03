@@ -3,12 +3,18 @@ import pandas as pd
 from healthcare_ops_kpi_qa.dashboard import (
     ALL_FILTER,
     build_tie_out_frame,
+    classify_run_trust,
+    commentary_display_text,
     filter_events,
     filter_source_linked_rows,
+    format_variance,
     kpi_definition_frame,
     select_cut_rows,
     selected_run_is_consistent,
+    snapshot_display_frame,
+    variance_state,
     workbook_summary_parity,
+    workbook_values_match_snapshot,
 )
 from healthcare_ops_kpi_qa.db import get_connection, get_engine, read_sql_frame
 from healthcare_ops_kpi_qa.pipeline import run_refresh
@@ -75,6 +81,51 @@ def test_definition_catalog_and_export_parity_use_configured_and_persisted_data(
     assert not workbook_summary_parity(snapshots[snapshots["market_name"].notna()])
 
 
+def test_trust_state_distinguishes_refresh_success_from_exception_free_reporting() -> None:
+    run_row = pd.Series({"run_status": "success", "validation_issue_count": 14})
+    source_files = pd.DataFrame([{"source_file_name": "roster.csv"}])
+
+    reviewable = classify_run_trust(run_row, _snapshot_frame(), source_files, workbook_available=True)
+    assert reviewable.label == "Ready with reviewable exceptions"
+    assert reviewable.tone == "reviewable"
+
+    ready = classify_run_trust(
+        pd.Series({"run_status": "success", "validation_issue_count": 0}),
+        _snapshot_frame(),
+        source_files,
+        workbook_available=True,
+    )
+    assert ready.label == "Ready"
+
+    incomplete = classify_run_trust(run_row, _snapshot_frame(), source_files, workbook_available=False)
+    assert incomplete.label == "Not ready"
+
+
+def test_variance_presentation_uses_configured_direction_and_people_formats() -> None:
+    assert variance_state(1, "lower_is_better") == "unfavorable"
+    assert variance_state(-1, "lower_is_better") == "favorable"
+    assert variance_state(0, "higher_is_better") == "neutral"
+    assert format_variance(0.2, "percent") == "+20 pp"
+
+    snapshots = pd.DataFrame(
+        [
+            {
+                "kpi_name": "Open Backlog Count",
+                "actual_value": 4,
+                "prior_period_value": 3,
+                "variance_value": 1,
+                "display_format": "integer",
+                "target_direction": "lower_is_better",
+            }
+        ]
+    )
+    display = snapshot_display_frame(snapshots).iloc[0]
+    assert display["Current"] == "4"
+    assert display["Change"] == "+1"
+    assert display["Interpretation"].startswith("Needs attention")
+    assert commentary_display_text("Top issue was `invalid_npi_checksum`.") == "Top issue was Invalid NPI Checksum."
+
+
 def test_tie_out_frame_connects_source_run_mart_and_workbook_counts() -> None:
     run_row = pd.Series({"staged_row_count": 13})
     source_files = pd.DataFrame(
@@ -88,14 +139,15 @@ def test_tie_out_frame_connects_source_run_mart_and_workbook_counts() -> None:
     issues = pd.DataFrame([{"validation_issue_id": number} for number in range(14)])
 
     tie_out = build_tie_out_frame(run_row, source_files, events, _snapshot_frame(), issues, workbook_available=True)
-    values = dict(zip(tie_out["control"], tie_out["value"], strict=True))
-    statuses = dict(zip(tie_out["control"], tie_out["status"], strict=True))
+    values = dict(zip(tie_out["stage"], tie_out["value"], strict=True))
+    statuses = dict(zip(tie_out["stage"], tie_out["status"], strict=True))
 
-    assert values["Selected source rows"] == 13
-    assert values["Run staged rows"] == 13
-    assert values["Selected market/team canonical events"] == 5
-    assert pd.isna(values["Workbook export"])
-    assert statuses["Workbook export"] == "available"
+    assert values["Source receipt"] == "3 file(s)"
+    assert values["Staging"] == "13 rows"
+    assert values["Canonical events"] == "5 events"
+    assert values["Workbook"] == "Exported"
+    assert statuses["Validation"] == "Passed with exceptions"
+    assert statuses["Workbook"] == "Available"
 
 
 def test_exported_workbook_summary_matches_persisted_overall_snapshot(tmp_path, monkeypatch) -> None:
@@ -114,7 +166,7 @@ def test_exported_workbook_summary_matches_persisted_overall_snapshot(tmp_path, 
             expected = read_sql_frame(
                 connection,
                 """
-                select k.kpi_name, s.actual_value
+                select k.kpi_name, s.actual_value, null as market_name, null as team_code
                 from fact_kpi_snapshot s
                 join dim_kpi k on k.kpi_id = s.kpi_id
                 where s.run_id = :run_id
@@ -136,5 +188,6 @@ def test_exported_workbook_summary_matches_persisted_overall_snapshot(tmp_path, 
 
     actual = workbook[workbook["kpi_name"].isin(expected["kpi_name"])][["kpi_name", "actual_value"]]
     actual = actual.sort_values("kpi_name").reset_index(drop=True)
-    expected = expected.sort_values("kpi_name").reset_index(drop=True)
-    pd.testing.assert_frame_equal(actual, expected, check_dtype=False)
+    expected_values = expected[["kpi_name", "actual_value"]].sort_values("kpi_name").reset_index(drop=True)
+    pd.testing.assert_frame_equal(actual, expected_values, check_dtype=False)
+    assert workbook_values_match_snapshot(output_dir / "healthcare_ops_kpi_qa_pack_2026_04.xlsx", expected)

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import re
+from dataclasses import dataclass
+from html import escape
 from pathlib import Path
 
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 from healthcare_ops_kpi_qa.commentary import build_commentary_preview
@@ -29,6 +32,23 @@ DASHBOARD_PAGES = {
     "Review packet": "review_packet",
 }
 
+RISK_COLOR = "#b84b3b"
+CAUTION_COLOR = "#a86e1a"
+FAVORABLE_COLOR = "#16735c"
+NEUTRAL_COLOR = "#5d6d71"
+INK_COLOR = "#16303a"
+TEAL_COLOR = "#006d77"
+
+
+@dataclass(frozen=True)
+class TrustSummary:
+    """A presentation-only assessment of whether a persisted run is usable."""
+
+    label: str
+    tone: str
+    detail: str
+    next_action: str
+
 
 def dashboard_notes() -> list[str]:
     return [
@@ -36,6 +56,96 @@ def dashboard_notes() -> list[str]:
         "Read KPI values from persisted snapshots and formulas from repository configuration.",
         "Keep source-level filtering limited to source-linked records and validation exceptions.",
     ]
+
+
+def format_reporting_period(reporting_period: str) -> str:
+    """Format persisted period keys for an operational audience."""
+    try:
+        return pd.Period(str(reporting_period), freq="M").strftime("%b %Y")
+    except ValueError:
+        return str(reporting_period)
+
+
+def format_timestamp(value: object) -> str:
+    if value is None or pd.isna(value):
+        return "Not recorded"
+    timestamp = pd.to_datetime(value)
+    return timestamp.strftime("%b %d, %Y · %H:%M")
+
+
+def variance_state(variance_value: object, target_direction: str) -> str:
+    """Classify a persisted variance without changing its value or formula."""
+    if variance_value is None or pd.isna(variance_value):
+        return "no_prior"
+    value = float(variance_value)
+    if abs(value) < 1e-9:
+        return "neutral"
+    if target_direction == "lower_is_better":
+        return "favorable" if value < 0 else "unfavorable"
+    return "favorable" if value > 0 else "unfavorable"
+
+
+def format_variance(value: object, display_format: str) -> str:
+    if value is None or pd.isna(value):
+        return "No prior period"
+    numeric_value = float(value)
+    if display_format == "percent":
+        return f"{numeric_value * 100:+.0f} pp"
+    if display_format == "days":
+        return f"{numeric_value:+.1f} days"
+    return f"{numeric_value:+,.0f}"
+
+
+def variance_label(state: str, variance_value: object, display_format: str) -> str:
+    labels = {
+        "favorable": "Favorable",
+        "unfavorable": "Needs attention",
+        "neutral": "No material change",
+        "no_prior": "No prior period",
+    }
+    if state == "no_prior":
+        return labels[state]
+    return f"{labels[state]} · {format_variance(variance_value, display_format)}"
+
+
+def classify_run_trust(
+    run_row: pd.Series,
+    snapshots: pd.DataFrame,
+    source_files: pd.DataFrame,
+    workbook_available: bool,
+) -> TrustSummary:
+    """Classify readiness from persisted run evidence, not refresh success alone."""
+    blockers: list[str] = []
+    if str(run_row.get("run_status", "")) != "success":
+        blockers.append("the refresh did not complete successfully")
+    if source_files.empty:
+        blockers.append("source receipt evidence is missing")
+    if snapshots.empty:
+        blockers.append("persisted KPI snapshots are missing")
+    if not workbook_available:
+        blockers.append("the expected workbook is unavailable")
+    if blockers:
+        return TrustSummary(
+            label="Not ready",
+            tone="not-ready",
+            detail="; ".join(blockers).capitalize() + ".",
+            next_action="Restore the missing run evidence before using this reporting period.",
+        )
+
+    issue_count = int(run_row.get("validation_issue_count", 0) or 0)
+    if issue_count:
+        return TrustSummary(
+            label="Ready with reviewable exceptions",
+            tone="reviewable",
+            detail=f"Refresh completed with {issue_count:,} logged validation exception(s).",
+            next_action="Review the logged exceptions before the operating review.",
+        )
+    return TrustSummary(
+        label="Ready",
+        tone="ready",
+        detail="Required sources, persisted KPI snapshots, and the workbook are available.",
+        next_action="Use this reporting period for the monthly operating review.",
+    )
 
 
 def kpi_definition_frame() -> pd.DataFrame:
@@ -111,6 +221,23 @@ def workbook_summary_parity(snapshots: pd.DataFrame) -> bool:
     return not overall.empty and set(HEADLINE_KPIS).issubset(set(overall["kpi_name"]))
 
 
+def workbook_values_match_snapshot(workbook_path: Path, snapshots: pd.DataFrame) -> bool:
+    """Compare the exported workbook summary to persisted overall rows without recalculating KPIs."""
+    if not workbook_path.exists() or not workbook_summary_parity(snapshots):
+        return False
+    try:
+        workbook = pd.read_excel(workbook_path, sheet_name="summary", skiprows=2, usecols="A:B")
+    except (OSError, ValueError):
+        return False
+    expected = snapshots[snapshots["market_name"].isna() & snapshots["team_code"].isna()][
+        ["kpi_name", "actual_value"]
+    ].copy()
+    actual = workbook[workbook["kpi_name"].isin(expected["kpi_name"])][["kpi_name", "actual_value"]].copy()
+    actual = actual.sort_values("kpi_name").reset_index(drop=True)
+    expected = expected.sort_values("kpi_name").reset_index(drop=True)
+    return actual.equals(expected)
+
+
 def build_tie_out_frame(
     run_row: pd.Series,
     source_files: pd.DataFrame,
@@ -118,19 +245,23 @@ def build_tie_out_frame(
     snapshots: pd.DataFrame,
     issues: pd.DataFrame,
     workbook_available: bool,
+    workbook_parity: bool | None = None,
 ) -> pd.DataFrame:
     source_rows = int(source_files["row_count"].fillna(0).sum()) if not source_files.empty else 0
     overall_rows = snapshots[snapshots["market_name"].isna() & snapshots["team_code"].isna()]
+    expected_source_files = int(run_row.get("source_file_count", len(source_files)))
+    source_status = "Passed" if len(source_files) == expected_source_files else "Filtered"
+    snapshot_status = "Passed" if not snapshots.empty else "Incomplete"
+    issue_status = "Passed with exceptions" if not issues.empty else "Passed"
+    workbook_status = "Passed" if workbook_parity else ("Available" if workbook_available else "Incomplete")
     return pd.DataFrame(
         [
-            {"control": "Selected source files", "value": len(source_files), "status": None, "evidence": "dim_source_file"},
-            {"control": "Selected source rows", "value": source_rows, "status": None, "evidence": "dim_source_file.row_count"},
-            {"control": "Run staged rows", "value": int(run_row["staged_row_count"]), "status": None, "evidence": "etl_run.staged_row_count"},
-            {"control": "Selected market/team canonical events", "value": len(events), "status": None, "evidence": "fact_provider_ops_event"},
-            {"control": "Overall KPI snapshots", "value": len(overall_rows), "status": None, "evidence": "fact_kpi_snapshot"},
-            {"control": "Selected-cut KPI snapshots", "value": len(snapshots), "status": None, "evidence": "fact_kpi_snapshot"},
-            {"control": "Validation issues", "value": len(issues), "status": None, "evidence": "fact_validation_issue"},
-            {"control": "Workbook export", "value": None, "status": "available" if workbook_available else "not found", "evidence": "outputs workbook"},
+            {"stage": "Source receipt", "value": f"{len(source_files):,} file(s)", "status": source_status, "detail": f"{source_rows:,} source row(s) received"},
+            {"stage": "Staging", "value": f"{int(run_row['staged_row_count']):,} rows", "status": "Passed", "detail": "Persisted refresh staging count"},
+            {"stage": "Canonical events", "value": f"{len(events):,} events", "status": "Passed" if not events.empty else "Incomplete", "detail": "Selected market and team context"},
+            {"stage": "KPI snapshot", "value": f"{len(snapshots):,} rows", "status": snapshot_status, "detail": f"{len(overall_rows):,} overall KPI row(s) available"},
+            {"stage": "Validation", "value": f"{len(issues):,} logged", "status": issue_status, "detail": "Reviewable exceptions remain visible" if not issues.empty else "No logged exceptions"},
+            {"stage": "Workbook", "value": "Exported" if workbook_available else "Unavailable", "status": workbook_status, "detail": "Summary values match persisted overall KPIs" if workbook_parity else "Export availability check"},
         ]
     )
 
@@ -251,7 +382,7 @@ def load_trend_data() -> pd.DataFrame:
               where run_status = 'success'
               group by reporting_period
             )
-            select r.reporting_period, s.run_id, k.kpi_name, k.display_format,
+            select r.reporting_period, s.run_id, k.kpi_name, k.display_format, k.target_direction,
                    s.actual_value, s.prior_period_value, s.variance_value, s.variance_pct,
                    m.market_name, t.team_code
             from fact_kpi_snapshot s
@@ -301,6 +432,14 @@ def run_dashboard() -> None:
         st.error("Selected-run consistency check failed. Refresh the page before using this cockpit.")
         return
 
+    selected_workbook = workbook_export_path(str(run_row["reporting_period"]))
+    trust = classify_run_trust(
+        run_row,
+        bundle["snapshots"],
+        bundle["source_files"],
+        selected_workbook.exists(),
+    )
+
     filtered = {
         "events": filter_events(bundle["events"], market_name, team_code),
         "snapshots": select_cut_rows(bundle["snapshots"], market_name, team_code),
@@ -310,10 +449,11 @@ def run_dashboard() -> None:
     }
     trend_data = select_cut_rows(load_trend_data(), market_name, team_code)
 
-    _render_header(run_row, market_name, team_code, source_file_type)
+    _render_header(run_row, market_name, team_code, source_file_type, trust)
+    _render_active_filters(market_name, team_code, source_file_type)
     page = DASHBOARD_PAGES[selected_page]
     if page == "executive_summary":
-        render_executive_summary(run_row, filtered, source_file_type)
+        render_executive_summary(run_row, filtered, bundle["issues"], source_file_type, trust)
     elif page == "kpi_definitions":
         render_kpi_definitions(filtered["snapshots"])
     elif page == "trends":
@@ -321,43 +461,99 @@ def run_dashboard() -> None:
     elif page == "market_team":
         render_market_team(bundle["snapshots"], market_name, team_code)
     elif page == "qa_tie_outs":
-        render_qa_and_tie_outs(run_row, filtered, source_file_type)
+        render_qa_and_tie_outs(run_row, filtered, bundle["snapshots"], source_file_type)
     elif page == "forecast_assumptions":
-        render_forecast_assumptions(filtered["forecasts"], source_file_type)
+        render_forecast_assumptions(filtered["forecasts"], trend_data, source_file_type)
     else:
         render_review_packet(run_row, bundle)
 
 
-def _render_header(run_row: pd.Series, market_name: str, team_code: str, source_file_type: str) -> None:
+def _render_header(
+    run_row: pd.Series,
+    market_name: str,
+    team_code: str,
+    source_file_type: str,
+    trust: TrustSummary,
+) -> None:
     st.markdown("<p class='eyebrow'>SYNTHETIC HEALTHCARE OPERATIONS DATA</p>", unsafe_allow_html=True)
     st.title("Monthly Operations Cockpit")
     st.caption("Synthetic demonstration data only — no real patient, member, or provider records are included.")
-    context = " · ".join(
-        [
-            f"Period {run_row['reporting_period']}",
-            f"Run {int(run_row['run_id'])}",
-            f"Market {market_name}",
-            f"Team {team_code}",
-            f"Source {source_file_type}",
-        ]
+    st.markdown(
+        """
+        <section class="briefing-strip" aria-label="Selected reporting context">
+          <div class="briefing-item">
+            <span class="briefing-label">Reporting period</span>
+            <strong>{period}</strong>
+            <span>Run {run_id} · refreshed {refreshed}</span>
+          </div>
+          <div class="briefing-item trust-{tone}">
+            <span class="briefing-label">Reporting trust</span>
+            <strong>{trust_label}</strong>
+            <span>{trust_detail}</span>
+          </div>
+          <div class="briefing-item">
+            <span class="briefing-label">Next operational action</span>
+            <strong>{next_action}</strong>
+            <span>Filters: {market} · {team} · {source}</span>
+          </div>
+        </section>
+        """.format(
+            period=escape(format_reporting_period(str(run_row["reporting_period"]))),
+            run_id=int(run_row["run_id"]),
+            refreshed=escape(format_timestamp(run_row["run_finished_at"])),
+            tone=trust.tone,
+            trust_label=escape(trust.label),
+            trust_detail=escape(trust.detail),
+            next_action=escape(trust.next_action),
+            market=escape(market_name),
+            team=escape(team_code),
+            source=escape(source_file_type),
+        ),
+        unsafe_allow_html=True,
     )
-    st.markdown(f"<div class='context-strip'>{context}</div>", unsafe_allow_html=True)
+
+
+def _render_active_filters(market_name: str, team_code: str, source_file_type: str) -> None:
+    active_filters = [
+        ("Market", "cockpit_market", market_name),
+        ("Team", "cockpit_team", team_code),
+        ("Source", "cockpit_source", source_file_type),
+    ]
+    active_filters = [item for item in active_filters if item[2] != ALL_FILTER]
+    if not active_filters:
+        return
+    st.caption("Active filters")
+    columns = st.columns(len(active_filters))
+    for column, (label, key, value) in zip(columns, active_filters, strict=True):
+        with column:
+            st.button(
+                f"{label}: {value} ×",
+                key=f"clear_{key}",
+                help=f"Clear {label.lower()} filter",
+                on_click=_clear_filter,
+                args=(key,),
+            )
+
+
+def _clear_filter(key: str) -> None:
+    st.session_state[key] = ALL_FILTER
+
+
+def _set_workspace(workspace: str) -> None:
+    st.session_state["cockpit_page"] = workspace
 
 
 def render_executive_summary(
     run_row: pd.Series,
     filtered: dict[str, pd.DataFrame],
+    run_issues: pd.DataFrame,
     source_file_type: str,
+    trust: TrustSummary,
 ) -> None:
     snapshots = filtered["snapshots"]
     st.subheader("Executive summary")
     if source_file_type != ALL_FILTER:
         st.info("Headline KPI snapshots are not source-grained in V1, so the source filter does not change this summary.")
-    left, middle, right = st.columns(3)
-    left.metric("Refresh health", "Successful")
-    middle.metric("Source files", int(run_row["source_file_count"]))
-    right.metric("Validation issues", int(run_row["validation_issue_count"]))
-    st.caption(f"Completed: {run_row['run_finished_at'] or 'not recorded'} · Staged rows: {int(run_row['staged_row_count'])}")
 
     if snapshots.empty:
         st.info("No persisted KPI cut is available for this market/team combination. V1 stores overall, market, and team cuts separately; it does not calculate a combined market-and-team cut.")
@@ -368,10 +564,77 @@ def render_executive_summary(
     for column, metric_name in zip(columns, HEADLINE_KPIS, strict=True):
         _metric_card(column, metrics.get(metric_name), metric_name)
 
-    st.markdown("#### Persisted KPI snapshot")
-    display = snapshots[["kpi_name", "actual_value", "prior_period_value", "variance_value", "variance_pct", "notes"]].copy()
-    st.dataframe(display, width="stretch", hide_index=True)
-    _download_csv("Download selected KPI snapshot", snapshots, f"kpi_snapshot_{run_row['reporting_period']}.csv")
+    changes, actions = build_operating_briefing(snapshots, len(run_issues), trust)
+    left, right = st.columns([1.25, 1])
+    with left:
+        st.markdown("#### What changed")
+        for change in changes:
+            st.markdown(f"- {change}")
+    with right:
+        st.markdown("#### What to do next")
+        for action in actions:
+            st.markdown(f"- {action}")
+        destination = "QA & tie-outs" if trust.tone != "ready" else "Trends"
+        st.button(
+            f"Open {destination}",
+            key="executive_next_action",
+            on_click=_set_workspace,
+            args=(destination,),
+        )
+
+    with st.expander("See full KPI table and download", expanded=False):
+        st.caption("Human-readable persisted snapshot values for the selected cut.")
+        st.dataframe(snapshot_display_frame(snapshots), width="stretch", hide_index=True)
+        _download_csv("Download selected KPI snapshot", snapshots, f"kpi_snapshot_{run_row['reporting_period']}.csv")
+
+
+def build_operating_briefing(
+    snapshots: pd.DataFrame,
+    issue_count: int,
+    trust: TrustSummary,
+) -> tuple[list[str], list[str]]:
+    """Turn persisted deltas into brief, readable operating-review prompts."""
+    changes: list[str] = []
+    attention_rows: list[pd.Series] = []
+    for _, row in snapshots.iterrows():
+        state = variance_state(row.get("variance_value"), str(row.get("target_direction", "higher_is_better")))
+        if state == "unfavorable":
+            attention_rows.append(row)
+    for row in attention_rows[:2]:
+        changes.append(
+            f"**{row['kpi_name']}** moved {format_variance(row['variance_value'], row['display_format'])} versus the prior period."
+        )
+    if not changes:
+        changes.append("Headline persisted KPIs showed no unfavorable period-over-period movement for this cut.")
+
+    actions = [trust.next_action]
+    if issue_count:
+        actions.append(f"Use QA & tie-outs to review {issue_count:,} logged validation exception(s) and their source context.")
+    else:
+        actions.append("Use the trend and segment views to confirm where the period changed.")
+    return changes, actions
+
+
+def snapshot_display_frame(snapshots: pd.DataFrame) -> pd.DataFrame:
+    """Format persisted snapshot rows for people while retaining their exact values in downloads."""
+    if snapshots.empty:
+        return pd.DataFrame(columns=["KPI", "Current", "Prior period", "Change", "Interpretation"])
+    rows: list[dict[str, str]] = []
+    for _, row in snapshots.iterrows():
+        display_format = str(row["display_format"])
+        state = variance_state(row.get("variance_value"), str(row.get("target_direction", "higher_is_better")))
+        rows.append(
+            {
+                "KPI": str(row["kpi_name"]),
+                "Current": _format_value(float(row["actual_value"]), display_format),
+                "Prior period": _format_value(float(row["prior_period_value"]), display_format)
+                if not pd.isna(row["prior_period_value"])
+                else "No prior period",
+                "Change": format_variance(row.get("variance_value"), display_format),
+                "Interpretation": variance_label(state, row.get("variance_value"), display_format),
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def render_kpi_definitions(snapshots: pd.DataFrame) -> None:
@@ -395,16 +658,74 @@ def render_trends(trend_data: pd.DataFrame, source_file_type: str) -> None:
         return
     selected_metric = st.selectbox("Metric", sorted(trend_data["kpi_name"].unique()), key="trend_metric")
     plot_df = trend_data[trend_data["kpi_name"] == selected_metric].copy()
-    left, right = st.columns(2)
-    with left:
-        figure = px.line(plot_df, x="reporting_period", y="actual_value", markers=True, title=selected_metric)
-        figure.update_layout(margin={"l": 12, "r": 12, "t": 46, "b": 12})
-        st.plotly_chart(figure, width="stretch")
-    with right:
-        figure = px.bar(plot_df, x="reporting_period", y="variance_value", title=f"{selected_metric} variance vs prior period")
-        figure.update_layout(margin={"l": 12, "r": 12, "t": 46, "b": 12})
-        st.plotly_chart(figure, width="stretch")
-    st.dataframe(plot_df[["reporting_period", "actual_value", "prior_period_value", "variance_value", "variance_pct"]], width="stretch", hide_index=True)
+    definition = kpi_definition_frame().set_index("kpi_name").loc[selected_metric]
+    display_format = str(definition["display_format"])
+    st.caption(
+        f"**How calculated:** {definition['how_calculated']} · "
+        f"**Desired direction:** {'Higher is better' if definition['target_direction'] == 'higher_is_better' else 'Lower is better'}"
+    )
+    st.markdown(f"#### Is {selected_metric} moving in the intended direction?")
+    st.plotly_chart(_build_trend_figure(plot_df, selected_metric, display_format), width="stretch")
+    st.markdown("#### Period comparison")
+    st.dataframe(snapshot_display_frame(plot_df), width="stretch", hide_index=True)
+    st.button(
+        "Compare market and team drivers",
+        key="trend_to_breakdown",
+        on_click=_set_workspace,
+        args=("Market & team",),
+    )
+
+
+def _build_trend_figure(plot_df: pd.DataFrame, metric_name: str, display_format: str) -> go.Figure:
+    history = plot_df.copy()
+    history["period_date"] = pd.to_datetime(history["reporting_period"].astype(str) + "-01")
+    figure = go.Figure()
+    figure.add_trace(
+        go.Scatter(
+            x=history["period_date"],
+            y=history["actual_value"],
+            mode="lines+markers",
+            name="Actual",
+            line={"color": INK_COLOR, "width": 3},
+            marker={"color": INK_COLOR, "size": 8},
+            hovertext=history["actual_value"].map(lambda value: _format_value(float(value), display_format)),
+            hovertemplate="%{x|%b %Y}<br>Actual: %{hovertext}<extra></extra>",
+        )
+    )
+    prior = history.dropna(subset=["prior_period_value"])
+    if not prior.empty:
+        figure.add_trace(
+            go.Scatter(
+                x=prior["period_date"],
+                y=prior["prior_period_value"],
+                mode="lines+markers",
+                name="Prior-period comparison",
+                line={"color": "#9aa6a6", "width": 2, "dash": "dot"},
+                marker={"color": "#9aa6a6", "size": 6},
+                hovertext=prior["prior_period_value"].map(lambda value: _format_value(float(value), display_format)),
+                hovertemplate="%{x|%b %Y}<br>Prior period: %{hovertext}<extra></extra>",
+            )
+        )
+    latest = history.iloc[-1]
+    figure.add_annotation(
+        x=latest["period_date"],
+        y=latest["actual_value"],
+        text=_format_value(float(latest["actual_value"]), display_format),
+        showarrow=False,
+        yshift=20,
+        font={"color": INK_COLOR, "size": 12},
+    )
+    tick_format = ".0%" if display_format == "percent" else None
+    figure.update_layout(
+        margin={"l": 18, "r": 18, "t": 54, "b": 18},
+        paper_bgcolor="#fffdf8",
+        plot_bgcolor="#fffdf8",
+        legend={"orientation": "h", "y": 1.1, "x": 0, "yanchor": "bottom"},
+        hovermode="x unified",
+    )
+    figure.update_xaxes(tickformat="%b\n%Y", dtick="M1", title_text=None, showgrid=False)
+    figure.update_yaxes(tickformat=tick_format, title_text=None, gridcolor="#d7ddd7", zeroline=False)
+    return figure
 
 
 def render_market_team(snapshots: pd.DataFrame, market_name: str, team_code: str) -> None:
@@ -415,16 +736,36 @@ def render_market_team(snapshots: pd.DataFrame, market_name: str, team_code: str
     metric_rows = snapshots[snapshots["kpi_name"] == selected_metric]
     market_rows = metric_rows[metric_rows["market_name"].notna() & metric_rows["team_code"].isna()]
     team_rows = metric_rows[metric_rows["team_code"].notna() & metric_rows["market_name"].isna()]
+    definition = kpi_definition_frame().set_index("kpi_name").loc[selected_metric]
     left, right = st.columns(2)
     with left:
         st.markdown("#### Market")
-        _render_segment_chart(market_rows, "market_name", selected_metric, "No market rows are available for this metric.")
+        _render_segment_chart(
+            market_rows,
+            "market_name",
+            selected_metric,
+            str(definition["display_format"]),
+            str(definition["target_direction"]),
+            "No market rows are available for this metric.",
+        )
     with right:
         st.markdown("#### Team")
-        _render_segment_chart(team_rows, "team_code", selected_metric, "No team rows are available for this metric.")
+        _render_segment_chart(
+            team_rows,
+            "team_code",
+            selected_metric,
+            str(definition["display_format"]),
+            str(definition["target_direction"]),
+            "No team rows are available for this metric.",
+        )
 
 
-def render_qa_and_tie_outs(run_row: pd.Series, filtered: dict[str, pd.DataFrame], source_file_type: str) -> None:
+def render_qa_and_tie_outs(
+    run_row: pd.Series,
+    filtered: dict[str, pd.DataFrame],
+    full_run_snapshots: pd.DataFrame,
+    source_file_type: str,
+) -> None:
     st.subheader("QA controls and tie-outs")
     events = filtered["events"]
     snapshots = filtered["snapshots"]
@@ -432,48 +773,143 @@ def render_qa_and_tie_outs(run_row: pd.Series, filtered: dict[str, pd.DataFrame]
     source_files = filtered["source_files"]
     workbook_path = workbook_export_path(str(run_row["reporting_period"]))
     workbook_available = workbook_path.exists()
-    tie_out = build_tie_out_frame(run_row, source_files, events, snapshots, issues, workbook_available)
+    workbook_parity = workbook_values_match_snapshot(workbook_path, full_run_snapshots)
+    tie_out = build_tie_out_frame(
+        run_row,
+        source_files,
+        events,
+        snapshots,
+        issues,
+        workbook_available,
+        workbook_parity,
+    )
 
-    st.markdown("#### Refresh lineage")
-    st.caption("Source files → staged rows → canonical events → persisted KPI snapshots → workbook export")
-    st.dataframe(tie_out, width="stretch", hide_index=True)
-    st.markdown("#### Source and validation controls")
-    left, right = st.columns([1.1, 1.4])
-    with left:
-        st.dataframe(source_files[["source_file_type", "source_file_name", "row_count", "loaded_at"]], width="stretch", hide_index=True)
-    with right:
+    st.markdown("#### Reporting trust chain")
+    st.caption("Source receipt → staging → canonical events → KPI snapshot → validation → workbook")
+    _render_trust_chain(tie_out)
+
+    detail = st.session_state.get("qa_drilldown", "Validation")
+    st.markdown(f"#### {detail} detail")
+    if detail == "Source receipt":
+        source_display = source_files.rename(
+            columns={
+                "source_file_type": "Source type",
+                "source_file_name": "Source file",
+                "row_count": "Rows received",
+                "loaded_at": "Loaded",
+            }
+        )[["Source type", "Source file", "Rows received", "Loaded"]]
+        st.dataframe(source_display, width="stretch", hide_index=True)
+    elif detail == "Staging":
+        st.info(f"{int(run_row['staged_row_count']):,} source rows were staged during the selected refresh.")
+        st.caption("Source-row detail remains in the controlled pipeline outputs; this review surface shows the run-level tie-out.")
+    elif detail == "Canonical events":
+        if events.empty:
+            st.info("No canonical events match the selected market/team context.")
+        else:
+            event_display = pd.DataFrame(
+                {
+                    "Provider work item": events["provider_name"],
+                    "Market": events["market_name"],
+                    "Team": events["team_code"],
+                    "Workflow status": events["event_status"].map(_humanize_label),
+                    "Completed": events["completion_flag"].map(_yes_no),
+                    "Open backlog": events["backlog_flag"].map(_yes_no),
+                    "QA flag": events["qa_issue_flag"].map(_yes_no),
+                }
+            )
+            st.dataframe(event_display, width="stretch", hide_index=True)
+            _download_csv("Download selected canonical events", events, f"canonical_events_{run_row['reporting_period']}.csv")
+    elif detail == "KPI snapshot":
+        if snapshots.empty:
+            st.info("No persisted KPI rows are available for this selected market/team combination.")
+        else:
+            st.dataframe(snapshot_display_frame(snapshots), width="stretch", hide_index=True)
+            _download_csv("Download selected KPI snapshot", snapshots, f"kpi_snapshot_{run_row['reporting_period']}.csv")
+    elif detail == "Workbook":
+        if workbook_parity:
+            st.success("Workbook summary values match the persisted overall KPI snapshot for this selected run.")
+        elif workbook_available:
+            st.warning("Workbook is present, but its summary did not match the persisted overall KPI snapshot.")
+        else:
+            st.warning("The expected workbook is not available for this selected run.")
+        if workbook_available:
+            st.download_button(
+                "Download workbook for selected run",
+                data=workbook_path.read_bytes(),
+                file_name=workbook_path.name,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
+    else:
         if issues.empty:
             st.success("No validation issues match the selected source filter.")
         else:
-            counts = issues.groupby(["severity", "issue_type"], dropna=False).size().reset_index(name="count")
-            st.dataframe(counts, width="stretch", hide_index=True)
-    st.markdown("#### Exception detail")
-    if issues.empty:
-        st.caption("No persisted exceptions are available for this selected run/source context.")
-    else:
-        st.dataframe(issues[["severity", "issue_type", "source_file_name", "row_identifier", "issue_message", "status"]], width="stretch", hide_index=True)
-
-    st.markdown("#### Canonical event and export parity")
-    if events.empty:
-        st.info("No canonical events match the selected market/team context.")
-    else:
-        st.dataframe(events[["provider_name", "market_name", "team_code", "event_status", "completion_flag", "backlog_flag", "qa_issue_flag"]], width="stretch", hide_index=True)
-    parity = workbook_summary_parity(filtered["snapshots"])
-    st.success("Workbook summary uses the selected run's persisted overall snapshot rows.") if parity else st.info("Workbook summary parity is only available for the overall cut; choose All market and All team to inspect it.")
-    _download_csv("Download selected validation exceptions", issues, f"validation_exceptions_{run_row['reporting_period']}.csv")
-    _download_csv("Download selected canonical events", events, f"canonical_events_{run_row['reporting_period']}.csv")
-    if workbook_available:
-        st.download_button(
-            "Download workbook for selected run",
-            data=workbook_path.read_bytes(),
-            file_name=workbook_path.name,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        )
-    elif source_file_type == ALL_FILTER:
-        st.warning("The expected workbook output is not available for this run. Refresh the selected period through the CLI to regenerate it.")
+            issue_counts = issues.groupby(["severity", "issue_type"], dropna=False).size().reset_index(name="Logged exceptions")
+            issue_display = pd.DataFrame(
+                {
+                    "Severity": issue_counts["severity"].map(_humanize_label),
+                    "Control area": issue_counts["issue_type"].map(_humanize_label),
+                    "Logged exceptions": issue_counts["Logged exceptions"],
+                }
+            )
+            st.dataframe(issue_display, width="stretch", hide_index=True)
+            with st.expander("See technical exception detail", expanded=False):
+                st.dataframe(
+                    issues[["severity", "issue_type", "source_file_name", "row_identifier", "issue_message", "status"]],
+                    width="stretch",
+                    hide_index=True,
+                )
+            _download_csv("Download selected validation exceptions", issues, f"validation_exceptions_{run_row['reporting_period']}.csv")
+    if source_file_type != ALL_FILTER:
+        st.caption("The source filter changes source receipt and exception detail; run-level staging and workbook checks remain full-run controls.")
 
 
-def render_forecast_assumptions(forecasts: pd.DataFrame, source_file_type: str) -> None:
+def _render_trust_chain(tie_out: pd.DataFrame) -> None:
+    columns = st.columns(len(tie_out))
+    for column, (_, row) in zip(columns, tie_out.iterrows(), strict=True):
+        status_class = str(row["status"]).lower().replace(" ", "-")
+        with column:
+            st.markdown(
+                """
+                <article class="trust-stage trust-{status_class}">
+                  <span class="trust-stage-label">{stage}</span>
+                  <strong>{value}</strong>
+                  <span class="trust-stage-status">{status}</span>
+                  <span class="trust-stage-detail">{detail}</span>
+                </article>
+                """.format(
+                    status_class=escape(status_class),
+                    stage=escape(str(row["stage"])),
+                    value=escape(str(row["value"])),
+                    status=escape(str(row["status"])),
+                    detail=escape(str(row["detail"])),
+                ),
+                unsafe_allow_html=True,
+            )
+            if st.button(f"Inspect {row['stage']}", key=f"inspect_{str(row['stage']).lower().replace(' ', '_')}"):
+                st.session_state["qa_drilldown"] = str(row["stage"])
+                st.rerun()
+
+
+def _humanize_label(value: object) -> str:
+    label = str(value).replace("_", " ").replace("-", " ").title()
+    return label.replace("Npi", "NPI").replace("Qa", "QA").replace("Sla", "SLA")
+
+
+def commentary_display_text(text: str) -> str:
+    """Keep the downloaded deterministic artifact canonical while making visible rule names readable."""
+    return re.sub(r"`([a-z0-9_]+)`", lambda match: _humanize_label(match.group(1)), text)
+
+
+def _yes_no(value: object) -> str:
+    return "Yes" if bool(value) else "No"
+
+
+def render_forecast_assumptions(
+    forecasts: pd.DataFrame,
+    trend_data: pd.DataFrame,
+    source_file_type: str,
+) -> None:
     st.subheader("Forecast assumptions and limitations")
     if source_file_type != ALL_FILTER:
         st.info("Forecast rows are not source-grained in V1, so the source filter does not change this view.")
@@ -488,19 +924,117 @@ def render_forecast_assumptions(forecasts: pd.DataFrame, source_file_type: str) 
     if forecasts.empty:
         st.info("No forecast rows are available for this selected cut. Forecasts require three sequential successful reporting periods.")
         return
-    overall = forecasts[forecasts["market_name"].isna() & forecasts["team_code"].isna()]
-    if not overall.empty:
-        figure = px.bar(
-            overall,
-            x="kpi_name",
-            y="forecast_value",
-            error_y=overall["upper_bound"] - overall["forecast_value"],
-            error_y_minus=overall["forecast_value"] - overall["lower_bound"],
-            title="Next-period forecast range",
+    metric_options = sorted(forecasts["kpi_name"].unique())
+    default_index = metric_options.index("Open Backlog Count") if "Open Backlog Count" in metric_options else 0
+    selected_metric = st.selectbox("Forecast metric", metric_options, index=default_index, key="forecast_metric")
+    forecast_row = forecasts[forecasts["kpi_name"] == selected_metric].iloc[0]
+    definition = kpi_definition_frame().set_index("kpi_name").loc[selected_metric]
+    display_format = str(definition["display_format"])
+    history = trend_data[trend_data["kpi_name"] == selected_metric].copy()
+    if history.empty:
+        st.info("No persisted actual history is available for this forecast metric and selected cut.")
+        return
+
+    latest_actual = history.sort_values("reporting_period").iloc[-1]
+    left, middle, right = st.columns(3)
+    left.markdown(
+        f"<div class='forecast-stat'><span>Last actual</span><strong>{_format_value(float(latest_actual['actual_value']), display_format)}</strong><small>{format_reporting_period(str(latest_actual['reporting_period']))}</small></div>",
+        unsafe_allow_html=True,
+    )
+    middle.markdown(
+        f"<div class='forecast-stat'><span>Next-period forecast</span><strong>{_format_value(float(forecast_row['forecast_value']), display_format)}</strong><small>{format_reporting_period(str(forecast_row['forecast_period_end'])[:7])}</small></div>",
+        unsafe_allow_html=True,
+    )
+    right.markdown(
+        f"<div class='forecast-stat'><span>Observed range</span><strong>{_format_value(float(forecast_row['lower_bound']), display_format)}–{_format_value(float(forecast_row['upper_bound']), display_format)}</strong><small>Three-period history</small></div>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(f"#### What should the team plan for next month? · {selected_metric}")
+    st.plotly_chart(_build_forecast_figure(history, forecast_row, selected_metric, display_format), width="stretch")
+    forecast_display = pd.DataFrame(
+        [
+            {
+                "Next period": format_reporting_period(str(forecast_row["forecast_period_end"])[:7]),
+                "Metric": selected_metric,
+                "Forecast": _format_value(float(forecast_row["forecast_value"]), display_format),
+                "Observed range": f"{_format_value(float(forecast_row['lower_bound']), display_format)}–{_format_value(float(forecast_row['upper_bound']), display_format)}",
+                "Method": "Rolling three-period average",
+            }
+        ]
+    )
+    st.dataframe(forecast_display, width="stretch", hide_index=True)
+
+
+def _build_forecast_figure(
+    history: pd.DataFrame,
+    forecast_row: pd.Series,
+    metric_name: str,
+    display_format: str,
+) -> go.Figure:
+    actuals = history.sort_values("reporting_period").copy()
+    actuals["period_date"] = pd.to_datetime(actuals["reporting_period"].astype(str) + "-01")
+    forecast_date = pd.to_datetime(forecast_row["forecast_period_end"])
+    latest_actual = actuals.iloc[-1]
+    forecast_value = float(forecast_row["forecast_value"])
+    lower_bound = float(forecast_row["lower_bound"])
+    upper_bound = float(forecast_row["upper_bound"])
+    figure = go.Figure()
+    figure.add_trace(
+        go.Scatter(
+            x=actuals["period_date"],
+            y=actuals["actual_value"],
+            mode="lines+markers",
+            name="Actual history",
+            line={"color": INK_COLOR, "width": 3},
+            marker={"color": INK_COLOR, "size": 8},
+            hovertext=actuals["actual_value"].map(lambda value: _format_value(float(value), display_format)),
+            hovertemplate="%{x|%b %Y}<br>Actual: %{hovertext}<extra></extra>",
         )
-        figure.update_layout(margin={"l": 12, "r": 12, "t": 46, "b": 12})
-        st.plotly_chart(figure, width="stretch")
-    st.dataframe(forecasts[["forecast_period_end", "kpi_name", "market_name", "team_code", "forecast_value", "lower_bound", "upper_bound", "model_name"]], width="stretch", hide_index=True)
+    )
+    range_width = pd.Timedelta(days=9)
+    figure.add_shape(
+        type="rect",
+        x0=forecast_date - range_width,
+        x1=forecast_date + range_width,
+        y0=lower_bound,
+        y1=upper_bound,
+        fillcolor=TEAL_COLOR,
+        opacity=0.16,
+        line={"width": 0},
+        layer="below",
+    )
+    figure.add_trace(
+        go.Scatter(
+            x=[latest_actual["period_date"], forecast_date],
+            y=[latest_actual["actual_value"], forecast_value],
+            mode="lines+markers+text",
+            name="Forecast point",
+            line={"color": TEAL_COLOR, "width": 3, "dash": "dash"},
+            marker={"color": TEAL_COLOR, "size": [7, 10]},
+            text=[None, f"Forecast {_format_value(forecast_value, display_format)}"],
+            textposition="top center",
+            hovertemplate="%{x|%b %Y}<br>Forecast: %{y}<extra></extra>",
+        )
+    )
+    figure.add_annotation(
+        x=forecast_date,
+        y=upper_bound,
+        text=f"Observed range {_format_value(lower_bound, display_format)}–{_format_value(upper_bound, display_format)}",
+        showarrow=False,
+        yshift=18,
+        font={"color": TEAL_COLOR, "size": 11},
+    )
+    tick_format = ".0%" if display_format == "percent" else None
+    figure.update_layout(
+        margin={"l": 18, "r": 18, "t": 54, "b": 18},
+        paper_bgcolor="#fffdf8",
+        plot_bgcolor="#fffdf8",
+        legend={"orientation": "h", "y": 1.1, "x": 0, "yanchor": "bottom"},
+        hovermode="x unified",
+    )
+    figure.update_xaxes(tickformat="%b\n%Y", dtick="M1", title_text=None, showgrid=False)
+    figure.update_yaxes(tickformat=tick_format, title_text=None, gridcolor="#d7ddd7", zeroline=False)
+    return figure
 
 
 def render_review_packet(run_row: pd.Series, bundle: dict[str, pd.DataFrame]) -> None:
@@ -513,16 +1047,20 @@ def render_review_packet(run_row: pd.Series, bundle: dict[str, pd.DataFrame]) ->
     overall = snapshots[snapshots["market_name"].isna() & snapshots["team_code"].isna()]
     market = snapshots[snapshots["market_name"].notna() & snapshots["team_code"].isna()]
     deterministic = build_commentary_preview(str(run_row["reporting_period"]), overall, market, issues)
+    displayed_commentary = commentary_display_text(deterministic)
 
     left, right = st.columns(2)
     with left:
         st.markdown("#### Deterministic commentary")
         st.caption("Canonical review text generated from persisted KPI and validation extracts.")
-        st.code(deterministic, language="text")
+        st.markdown(
+            f"<div class='commentary-preview'>{escape(displayed_commentary).replace(chr(10), '<br>')}</div>",
+            unsafe_allow_html=True,
+        )
         st.download_button("Download deterministic commentary", deterministic, f"commentary_{run_row['reporting_period']}.txt", mime="text/plain")
     with right:
         st.markdown("#### Optional LLM draft")
-        st.caption("A separate optional draft; it never replaces deterministic commentary.")
+        st.caption("Draft only — human review is required. It never replaces deterministic commentary.")
         if drafts.empty:
             st.info("No optional LLM draft has been generated for this selected run.")
         else:
@@ -552,36 +1090,146 @@ def render_review_packet(run_row: pd.Series, bundle: dict[str, pd.DataFrame]) ->
         width="stretch",
         hide_index=True,
     )
-    first, second, third = st.columns(3)
+    first, second, third, fourth = st.columns(4)
     with first:
         _download_csv("KPI snapshots", snapshots, f"kpi_snapshot_{run_row['reporting_period']}.csv")
     with second:
         _download_csv("Validation exceptions", issues, f"validation_exceptions_{run_row['reporting_period']}.csv")
     with third:
         _download_csv("Forecast rows", forecasts, f"forecasts_{run_row['reporting_period']}.csv")
+    with fourth:
+        workbook_path = workbook_export_path(str(run_row["reporting_period"]))
+        if workbook_path.exists():
+            st.download_button(
+                "Audit workbook",
+                data=workbook_path.read_bytes(),
+                file_name=workbook_path.name,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
 
 
-def _render_segment_chart(rows: pd.DataFrame, category: str, metric_name: str, empty_message: str) -> None:
+def _render_segment_chart(
+    rows: pd.DataFrame,
+    category: str,
+    metric_name: str,
+    display_format: str,
+    target_direction: str,
+    empty_message: str,
+) -> None:
     if rows.empty:
         st.info(empty_message)
         return
-    figure = px.bar(rows, x=category, y="actual_value", color=category, title=metric_name)
-    figure.update_layout(showlegend=False, margin={"l": 12, "r": 12, "t": 46, "b": 12})
+    display_rows = rows.copy()
+    display_rows["variance_state"] = display_rows["variance_value"].map(
+        lambda value: variance_state(value, target_direction)
+    )
+    display_rows = display_rows.sort_values("actual_value", ascending=True)
+    colors = {
+        "favorable": FAVORABLE_COLOR,
+        "unfavorable": RISK_COLOR,
+        "neutral": NEUTRAL_COLOR,
+        "no_prior": NEUTRAL_COLOR,
+    }
+    display_rows["color"] = display_rows["variance_state"].map(colors)
+    display_rows["label"] = display_rows["actual_value"].map(lambda value: _format_value(float(value), display_format))
+    display_rows["hover"] = display_rows.apply(
+        lambda row: "<br>".join(
+            [
+                f"Current: {_format_value(float(row['actual_value']), display_format)}",
+                f"Prior: {_format_value(float(row['prior_period_value']), display_format)}"
+                if not pd.isna(row["prior_period_value"])
+                else "Prior: No prior period",
+                variance_label(row["variance_state"], row["variance_value"], display_format),
+            ]
+        ),
+        axis=1,
+    )
+    figure = go.Figure(
+        go.Bar(
+            y=display_rows[category],
+            x=display_rows["actual_value"],
+            orientation="h",
+            marker_color=display_rows["color"],
+            text=display_rows["label"],
+            textposition="outside",
+            hovertext=display_rows["hover"],
+            hovertemplate="%{y}<br>%{hovertext}<extra></extra>",
+        )
+    )
+    tick_format = ".0%" if display_format == "percent" else None
+    figure.update_layout(
+        title=f"Where is {metric_name} concentrated?",
+        paper_bgcolor="#fffdf8",
+        plot_bgcolor="#fffdf8",
+        margin={"l": 12, "r": 48, "t": 48, "b": 12},
+        showlegend=False,
+    )
+    figure.update_xaxes(tickformat=tick_format, title_text=None, gridcolor="#d7ddd7", zeroline=False)
+    figure.update_yaxes(title_text=None, showgrid=False)
     st.plotly_chart(figure, width="stretch")
-    st.dataframe(rows[[category, "actual_value", "prior_period_value", "variance_value", "variance_pct"]], width="stretch", hide_index=True)
+    driver = display_rows[display_rows["variance_state"] == "unfavorable"]
+    driver = driver.iloc[-1] if not driver.empty else display_rows.iloc[-1]
+    driver_change = format_variance(driver["variance_value"], display_format)
+    st.caption(f"Largest current driver: {driver[category]} · {driver_change} versus the prior period.")
+    segment_table = pd.DataFrame(
+        {
+            "Segment": display_rows[category],
+            "Current": display_rows["actual_value"].map(lambda value: _format_value(float(value), display_format)),
+            "Prior period": display_rows["prior_period_value"].map(
+                lambda value: _format_value(float(value), display_format) if not pd.isna(value) else "No prior period"
+            ),
+            "Change": display_rows["variance_value"].map(lambda value: format_variance(value, display_format)),
+            "Interpretation": display_rows.apply(
+                lambda row: variance_label(row["variance_state"], row["variance_value"], display_format), axis=1
+            ),
+        }
+    )
+    if display_format == "integer" and display_rows["actual_value"].sum() > 0:
+        segment_table["Share of displayed total"] = display_rows["actual_value"].map(
+            lambda value: f"{value / display_rows['actual_value'].sum():.0%}"
+        )
+    st.dataframe(segment_table, width="stretch", hide_index=True)
 
 
 def _metric_card(column, metric_row: pd.Series | None, label: str) -> None:
     if metric_row is None:
-        column.metric(label, "Unavailable")
+        column.markdown(
+            f"<article class='metric-card metric-unavailable'><span>{escape(label)}</span><strong>Unavailable</strong><small>No persisted cut available</small></article>",
+            unsafe_allow_html=True,
+        )
         return
     value = _format_value(float(metric_row["actual_value"]), str(metric_row["display_format"]))
     prior = metric_row.get("prior_period_value")
     variance = metric_row.get("variance_value")
-    delta = None if pd.isna(variance) else _format_delta(float(variance), str(metric_row["display_format"]))
-    column.metric(label, value, delta)
-    if not pd.isna(prior):
-        column.caption(f"Prior: {_format_value(float(prior), str(metric_row['display_format']))}")
+    display_format = str(metric_row["display_format"])
+    state = variance_state(variance, str(metric_row.get("target_direction", "higher_is_better")))
+    prior_text = _format_value(float(prior), display_format) if not pd.isna(prior) else "No prior period"
+    tone_icon = {
+        "favorable": "✓",
+        "unfavorable": "!",
+        "neutral": "—",
+        "no_prior": "·",
+    }[state]
+    column.markdown(
+        """
+        <article class="metric-card metric-{state}">
+          <span>{label}</span>
+          <strong>{value}</strong>
+          <small>{delta}</small>
+          <em>Prior: {prior}</em>
+          <b>{icon} {interpretation}</b>
+        </article>
+        """.format(
+            state=state,
+            label=escape(label),
+            value=escape(value),
+            delta=escape(format_variance(variance, display_format)),
+            prior=escape(prior_text),
+            icon=tone_icon,
+            interpretation=escape(variance_label(state, variance, display_format).split(" · ")[0]),
+        ),
+        unsafe_allow_html=True,
+    )
 
 
 def _format_value(value: float, display_format: str) -> str:
@@ -592,14 +1240,6 @@ def _format_value(value: float, display_format: str) -> str:
     return f"{value:,.0f}"
 
 
-def _format_delta(value: float, display_format: str) -> str:
-    if display_format == "percent":
-        return f"{value:+.0%}"
-    if display_format == "days":
-        return f"{value:+.1f} days"
-    return f"{value:+.0f}"
-
-
 def _download_csv(label: str, frame: pd.DataFrame, file_name: str) -> None:
     st.download_button(label, frame.to_csv(index=False).encode("utf-8"), file_name, mime="text/csv")
 
@@ -608,23 +1248,81 @@ def _inject_styles() -> None:
     st.markdown(
         """
         <style>
-          :root { --ink: #16303a; --teal: #006d77; --coral: #d35e46; --paper: #f7f4ed; --line: #d7ddd7; }
-          .stApp { background: var(--paper); color: var(--ink); }
-          [data-testid="stSidebar"] { background: #16303a; }
+          :root {
+            --ink: #16303a;
+            --teal: #006d77;
+            --coral: #b84b3b;
+            --amber: #a86e1a;
+            --green: #16735c;
+            --paper: #f7f4ed;
+            --panel: #fffdf8;
+            --line: #d7ddd7;
+            --muted: #61757a;
+          }
+          .stApp { background: var(--paper); color: var(--ink); font-family: "Avenir Next", "Helvetica Neue", sans-serif; }
+          h1, h2, h3 { font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; color: var(--ink); letter-spacing: -.025em; }
+          h1 { font-size: clamp(2.2rem, 4vw, 3.3rem) !important; margin-bottom: .35rem !important; }
+          [data-testid="stSidebar"] { background: var(--ink); border-right: 1px solid #244550; }
           [data-testid="stSidebar"] * { color: #f7f4ed !important; }
-          .rail-eyebrow, .eyebrow { letter-spacing: .15em; font-weight: 700; font-size: .72rem; margin-bottom: .35rem; }
+          [data-testid="stSidebar"] [data-baseweb="select"] *, [data-testid="stSidebar"] [role="combobox"], [data-testid="stSidebar"] input { color: var(--ink) !important; }
+          .rail-eyebrow, .eyebrow { letter-spacing: .16em; font-weight: 750; font-size: .71rem; margin-bottom: .35rem; }
           .rail-eyebrow { color: #9ed8d7 !important; }
-          .eyebrow { color: #006d77; }
-          .context-strip { border-left: 4px solid #d35e46; background: #fffdf8; padding: .75rem 1rem; margin: .8rem 0 1.35rem; color: #16303a; font-weight: 600; }
-          [data-testid="stMetric"] { background: #fffdf8; border: 1px solid #d7ddd7; border-radius: .35rem; padding: .8rem; min-height: 112px; }
-          [data-testid="stMetricLabel"] { letter-spacing: .04em; text-transform: uppercase; font-size: .72rem; }
-          .stButton > button, .stDownloadButton > button { border-radius: .2rem; border: 1px solid #006d77; color: #006d77; background: transparent; font-weight: 650; }
-          .stButton > button:hover, .stDownloadButton > button:hover { color: white; background: #006d77; border-color: #006d77; }
-          [data-testid="stDataFrame"] { border: 1px solid #d7ddd7; border-radius: .3rem; }
+          .eyebrow { color: var(--teal); }
+          .briefing-strip { display: grid; grid-template-columns: 1fr 1.25fr 1.25fr; background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--teal); margin: 1rem 0 1.35rem; }
+          .briefing-item { min-height: 108px; padding: .9rem 1rem; display: flex; flex-direction: column; gap: .28rem; border-right: 1px solid var(--line); }
+          .briefing-item:last-child { border-right: 0; }
+          .briefing-item strong { color: var(--ink); font-size: 1.04rem; line-height: 1.25; }
+          .briefing-item span:last-child { color: var(--muted); font-size: .81rem; line-height: 1.45; }
+          .briefing-label, .trust-stage-label { color: var(--muted) !important; font-size: .68rem !important; font-weight: 750; letter-spacing: .1em; text-transform: uppercase; }
+          .briefing-item.trust-ready { box-shadow: inset 0 3px 0 var(--green); }
+          .briefing-item.trust-reviewable { box-shadow: inset 0 3px 0 var(--amber); }
+          .briefing-item.trust-not-ready { box-shadow: inset 0 3px 0 var(--coral); }
+          .metric-card { background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--teal); min-height: 168px; padding: .88rem .9rem .82rem; display: flex; flex-direction: column; gap: .3rem; }
+          .metric-card > span { color: var(--muted); font-size: .68rem; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
+          .metric-card > strong { color: var(--ink); font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; font-size: 2rem; font-weight: 600; line-height: 1; }
+          .metric-card small, .metric-card em { color: var(--muted); font-size: .8rem; font-style: normal; }
+          .metric-card b { align-self: flex-start; font-size: .73rem; font-weight: 750; letter-spacing: .02em; }
+          .metric-favorable { border-top-color: var(--green); }
+          .metric-favorable b { color: var(--green); }
+          .metric-unfavorable { border-top-color: var(--coral); }
+          .metric-unfavorable b { color: var(--coral); }
+          .metric-neutral { border-top-color: var(--muted); }
+          .metric-neutral b, .metric-no_prior b { color: var(--muted); }
+          .metric-no_prior, .metric-unavailable { border-top-color: var(--amber); }
+          .trust-stage { height: 150px; border: 1px solid var(--line); border-top: 3px solid var(--teal); background: var(--panel); padding: .7rem; display: flex; flex-direction: column; gap: .28rem; }
+          .trust-stage strong { color: var(--ink); font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; font-size: 1.4rem; line-height: 1.1; }
+          .trust-stage-status { font-size: .72rem; font-weight: 750; color: var(--green); }
+          .trust-stage-detail { color: var(--muted); font-size: .71rem; line-height: 1.35; }
+          .trust-passed-with-exceptions { border-top-color: var(--amber); }
+          .trust-passed-with-exceptions .trust-stage-status, .trust-filtered .trust-stage-status { color: var(--amber); }
+          .trust-incomplete { border-top-color: var(--coral); }
+          .trust-incomplete .trust-stage-status { color: var(--coral); }
+          .forecast-stat { background: var(--panel); border: 1px solid var(--line); border-top: 3px solid var(--teal); min-height: 108px; padding: .72rem .85rem; display: flex; flex-direction: column; gap: .24rem; }
+          .forecast-stat span, .forecast-stat small { color: var(--muted); font-size: .76rem; }
+          .forecast-stat strong { color: var(--ink); font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif; font-size: 1.55rem; }
+          .commentary-preview { background: var(--panel); border-left: 3px solid var(--teal); color: var(--ink); line-height: 1.65; padding: 1rem 1.1rem; }
+          .stButton > button, .stDownloadButton > button { border-radius: 0; border: 1px solid var(--teal); color: var(--teal); background: transparent; font-weight: 700; min-height: 2.3rem; }
+          .stButton > button:hover, .stDownloadButton > button:hover { color: #fff; background: var(--teal); border-color: var(--teal); }
+          [data-testid="stSelectbox"] [data-baseweb="select"] > div:focus-within { border-color: var(--teal) !important; box-shadow: 0 0 0 2px rgba(0, 109, 119, .24) !important; }
+          button:focus-visible, .stButton > button:focus-visible, .stDownloadButton > button:focus-visible, [role="combobox"]:focus-visible, input:focus-visible { outline: 3px solid #e8b15e !important; outline-offset: 2px; }
+          [data-testid="stDataFrame"] { border: 1px solid var(--line); border-radius: 0; }
+          [data-testid="stExpander"] { border-color: var(--line); background: rgba(255, 253, 248, .55); }
+          @media (max-width: 1100px) {
+            .briefing-strip { grid-template-columns: 1fr; }
+            .briefing-item { min-height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+            .briefing-item:last-child { border-bottom: 0; }
+            .trust-stage { height: auto; min-height: 124px; }
+          }
           @media (max-width: 700px) {
-            .context-strip { font-size: .82rem; line-height: 1.5; }
-            [data-testid="stMetric"] { min-height: 92px; padding: .65rem; }
-            h1 { font-size: 2rem !important; }
+            h1 { font-size: 2.15rem !important; }
+            .briefing-item { padding: .82rem .9rem; }
+            .metric-card { min-height: 142px; padding: .75rem; }
+            .metric-card > strong { font-size: 1.72rem; }
+            .trust-stage { min-height: 0; padding: .65rem; }
+            .forecast-stat { min-height: 92px; }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
           }
         </style>
         """,

@@ -108,11 +108,12 @@ Run these commands from the repository root. The deterministic demo does not req
 The Streamlit cockpit is a read-only operational review surface over persisted SQLite mart data. Select one successful reporting run, then apply market, team, and source filters where the underlying V1 data grain supports them.
 
 - **Executive summary:** run health, headline KPI values, prior-period context, and persisted variance.
+- **Briefing trust state:** `Ready`, `Ready with reviewable exceptions`, or `Not ready`, with an explicit next operational action. Refresh success is supporting evidence, not a claim that the period is exception-free.
 - **KPI definitions:** formulas and display rules from `config/kpi_definitions.yml`, plus selected-cut numerator/denominator detail.
-- **Trends and market/team:** latest successful run per period with explicit unavailable states for unsupported combined cuts.
-- **QA & tie-outs:** source-file inventory, staged row count, canonical events, persisted snapshots, validation exceptions, and workbook availability.
-- **Forecast assumptions:** transparent three-period rolling-average forecasts and their limits.
-- **Review packet:** deterministic commentary, separately labeled optional LLM draft status, selected-run metadata, and matching downloads.
+- **Trends and market/team:** latest successful run per period with direction-aware, human-readable comparisons and explicit unavailable states for unsupported combined cuts.
+- **QA & tie-outs:** a source-to-workbook trust chain with source receipt, staging, canonical events, persisted snapshots, validation exceptions, workbook availability, and workbook-summary value parity.
+- **Forecast assumptions:** actual history, a distinct next-period forecast point, observed range, transparent three-period rolling-average method, and limits.
+- **Review packet:** deterministic commentary, separately labeled optional LLM draft status requiring human review, selected-run metadata, and matching downloads including the audit workbook.
 
 All displayed operations data is synthetic. The cockpit does not recalculate KPIs, alter the refresh pipeline, or display local file paths.
 

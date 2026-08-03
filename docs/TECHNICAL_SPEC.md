@@ -278,7 +278,9 @@ Current status:
 - implemented
 - trend views use the latest successful run per reporting period rather than every rerun
 - persistent run, market, team, and source filters are applied only where the persisted V1 data grain supports them
-- executive summary uses persisted KPI snapshot values, prior values, and variances
+- executive summary uses persisted KPI snapshot values, prior values, and variances, with a run-level trust state that distinguishes Ready, Ready with reviewable exceptions, and Not ready
 - KPI formulas are read from `config/kpi_definitions.yml` rather than duplicated in the dashboard
-- QA controls connect source-file inventory, staged rows, canonical events, validation issues, persisted snapshots, and workbook availability
-- review packet shows deterministic commentary separately from optional LLM draft metadata and provides selected-run downloads
+- favorable, unfavorable, and neutral variance presentation is derived from the configured KPI target direction; rate variance is displayed in percentage points
+- QA controls connect source-file inventory, staged rows, canonical events, validation issues, persisted snapshots, workbook availability, and a direct workbook-summary comparison against persisted overall snapshot values
+- forecast views use persisted actual history plus the persisted forecast point and range; the dashboard does not generate forecast values
+- review packet shows deterministic commentary separately from optional LLM draft metadata, states that human review is required for drafts, and provides matching selected-run downloads
