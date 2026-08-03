@@ -3,12 +3,15 @@ import pandas as pd
 from healthcare_ops_kpi_qa.dashboard import (
     ALL_FILTER,
     build_tie_out_frame,
+    calculation_summary,
     classify_run_trust,
     commentary_display_text,
     filter_events,
     filter_source_linked_rows,
+    forecast_display_period_date,
     format_variance,
     kpi_definition_frame,
+    review_packet_metadata_frame,
     select_cut_rows,
     selected_run_is_consistent,
     snapshot_display_frame,
@@ -124,6 +127,43 @@ def test_variance_presentation_uses_configured_direction_and_people_formats() ->
     assert display["Change"] == "+1"
     assert display["Interpretation"].startswith("Needs attention")
     assert commentary_display_text("Top issue was `invalid_npi_checksum`.") == "Top issue was Invalid NPI Checksum."
+
+
+def test_review_packet_metadata_uses_operational_labels_and_formats() -> None:
+    metadata = review_packet_metadata_frame(
+        pd.Series(
+            {
+                "run_id": 6,
+                "reporting_period": "2026-04",
+                "run_status": "success",
+                "run_finished_at": "2026-08-03T15:27:00",
+                "source_file_count": 3,
+                "validation_issue_count": 14,
+            }
+        )
+    )
+
+    assert metadata.columns.tolist() == ["Item", "Details"]
+    assert metadata.to_dict("records") == [
+        {"Item": "Run", "Details": "Run 6"},
+        {"Item": "Reporting period", "Details": "Apr 2026"},
+        {"Item": "Refresh status", "Details": "Successful"},
+        {"Item": "Refresh completed", "Details": "Aug 03, 2026 · 15:27"},
+        {"Item": "Source files", "Details": "3 file(s)"},
+        {"Item": "Logged validation exceptions", "Details": "14 exception(s)"},
+    ]
+
+
+def test_forecast_display_period_aligns_with_month_grained_actuals() -> None:
+    assert forecast_display_period_date("2026-05-31") == pd.Timestamp("2026-05-01")
+
+
+def test_calculation_summary_hides_config_field_names_on_operational_surfaces() -> None:
+    summary = calculation_summary("Average Turnaround Days")
+
+    assert summary == "Average elapsed days for completed records"
+    assert "turnaround_days" not in summary
+    assert "completion_flag" not in summary
 
 
 def test_tie_out_frame_connects_source_run_mart_and_workbook_counts() -> None:

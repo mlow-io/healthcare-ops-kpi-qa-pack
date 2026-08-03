@@ -38,6 +38,17 @@ FAVORABLE_COLOR = "#16735c"
 NEUTRAL_COLOR = "#5d6d71"
 INK_COLOR = "#16303a"
 TEAL_COLOR = "#006d77"
+KPI_CALCULATION_SUMMARIES = {
+    "Total Records Received": "Count of received records",
+    "Completed Records": "Count of records completed during the period",
+    "Completion Rate": "Completed records as a share of received records",
+    "Average Turnaround Days": "Average elapsed days for completed records",
+    "Open Backlog Count": "Count of records remaining open at period end",
+    "Backlog Over SLA Count": "Count of open records beyond the service-level target",
+    "QA Issue Rate": "Records with a logged QA issue as a share of received records",
+    "Required Field Completeness Rate": "Records with all required fields as a share of received records",
+    "Unique NPI Rate": "Records with a unique provider NPI as a share of received records",
+}
 
 
 @dataclass(frozen=True)
@@ -71,6 +82,16 @@ def format_timestamp(value: object) -> str:
         return "Not recorded"
     timestamp = pd.to_datetime(value)
     return timestamp.strftime("%b %d, %Y · %H:%M")
+
+
+def forecast_display_period_date(value: object) -> pd.Timestamp:
+    """Position month-end forecast records alongside month-grained actual history."""
+    return pd.to_datetime(value).to_period("M").to_timestamp()
+
+
+def calculation_summary(kpi_name: str) -> str:
+    """Return a plain-language display definition without changing configured logic."""
+    return KPI_CALCULATION_SUMMARIES.get(kpi_name, "Definition available in the KPI catalog")
 
 
 def variance_state(variance_value: object, target_direction: str) -> str:
@@ -661,7 +682,7 @@ def render_trends(trend_data: pd.DataFrame, source_file_type: str) -> None:
     definition = kpi_definition_frame().set_index("kpi_name").loc[selected_metric]
     display_format = str(definition["display_format"])
     st.caption(
-        f"**How calculated:** {definition['how_calculated']} · "
+        f"**Calculated as:** {calculation_summary(selected_metric)} · "
         f"**Desired direction:** {'Higher is better' if definition['target_direction'] == 'higher_is_better' else 'Lower is better'}"
     )
     st.markdown(f"#### Is {selected_metric} moving in the intended direction?")
@@ -905,6 +926,25 @@ def _yes_no(value: object) -> str:
     return "Yes" if bool(value) else "No"
 
 
+def review_packet_metadata_frame(run_row: pd.Series) -> pd.DataFrame:
+    """Present selected-run evidence with operational labels, not persistence fields."""
+    refresh_status = str(run_row["run_status"])
+    status_label = "Successful" if refresh_status == "success" else _humanize_label(refresh_status)
+    return pd.DataFrame(
+        [
+            {"Item": "Run", "Details": f"Run {int(run_row['run_id']):,}"},
+            {"Item": "Reporting period", "Details": format_reporting_period(str(run_row['reporting_period']))},
+            {"Item": "Refresh status", "Details": status_label},
+            {"Item": "Refresh completed", "Details": format_timestamp(run_row["run_finished_at"])},
+            {"Item": "Source files", "Details": f"{int(run_row['source_file_count']):,} file(s)"},
+            {
+                "Item": "Logged validation exceptions",
+                "Details": f"{int(run_row['validation_issue_count']):,} exception(s)",
+            },
+        ]
+    ).astype({"Details": "string"})
+
+
 def render_forecast_assumptions(
     forecasts: pd.DataFrame,
     trend_data: pd.DataFrame,
@@ -915,7 +955,7 @@ def render_forecast_assumptions(
         st.info("Forecast rows are not source-grained in V1, so the source filter does not change this view.")
     st.markdown(
         """
-        - **Method:** rolling three-period average (`rolling_avg_3`).
+        - **Method:** rolling three-period average.
         - **Coverage:** stable volume and backlog metrics only.
         - **Bounds:** the minimum and maximum observed values in the same three-period history.
         - **Limitations:** this is a transparent baseline, not a causal or clinical forecast; QA issue rate is intentionally not forecast in V1.
@@ -973,7 +1013,7 @@ def _build_forecast_figure(
 ) -> go.Figure:
     actuals = history.sort_values("reporting_period").copy()
     actuals["period_date"] = pd.to_datetime(actuals["reporting_period"].astype(str) + "-01")
-    forecast_date = pd.to_datetime(forecast_row["forecast_period_end"])
+    forecast_date = forecast_display_period_date(forecast_row["forecast_period_end"])
     latest_actual = actuals.iloc[-1]
     forecast_value = float(forecast_row["forecast_value"])
     lower_bound = float(forecast_row["lower_bound"])
@@ -1075,16 +1115,7 @@ def render_review_packet(run_row: pd.Series, bundle: dict[str, pd.DataFrame]) ->
                 st.json(json.loads(str(latest["prompt_payload_json"])))
 
     st.markdown("#### Selected-run package")
-    packet_metadata = pd.DataFrame(
-            [
-                {"field": "run_id", "value": int(run_row["run_id"])},
-                {"field": "reporting_period", "value": run_row["reporting_period"]},
-                {"field": "run_status", "value": run_row["run_status"]},
-                {"field": "completed_at", "value": run_row["run_finished_at"]},
-                {"field": "source_files", "value": int(run_row["source_file_count"])},
-                {"field": "validation_issues", "value": int(run_row["validation_issue_count"])},
-            ]
-        ).astype({"value": "string"})
+    packet_metadata = review_packet_metadata_frame(run_row)
     st.dataframe(
         packet_metadata,
         width="stretch",

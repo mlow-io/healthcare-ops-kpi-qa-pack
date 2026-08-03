@@ -5,7 +5,7 @@
 - Dashboard overview: `docs/demo_assets/dashboard_overview.png` — April reporting context, `Ready with reviewable exceptions` trust state, direction-aware headline KPIs, and next action.
 - Dashboard trend: `docs/demo_assets/dashboard_trend.png` — formatted actual and prior-period comparison for a selected KPI.
 - Dashboard QA: `docs/demo_assets/dashboard_qa.png` — source-to-workbook control ledger with counts, statuses, drilldowns, and human-readable exception categories.
-- Dashboard forecast: `docs/demo_assets/dashboard_forecast.png` — actual history, distinct next-period forecast point, observed range, assumptions, and limits.
+- Dashboard forecast: `docs/demo_assets/dashboard_forecast.png` — actual history, distinct next-period forecast point, observed range, and displayed rolling-average method.
 - Dashboard commentary: `docs/demo_assets/dashboard_commentary.png` — readable deterministic commentary beside clearly labeled optional draft and human-review requirement.
 
 ## Versioned output evidence
