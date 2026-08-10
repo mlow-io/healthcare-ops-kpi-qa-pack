@@ -6,10 +6,11 @@ This repository implements a healthcare operations reporting pipeline for provid
 
 ## Read First
 
-1. `README.md` for scope, setup, outputs, and limitations.
-2. `docs/TECHNICAL_SPEC.md` and `docs/DATA_MODEL.md` for system contracts.
-3. `docs/DECISIONS.md` for architectural boundaries.
-4. `docs/DEMO_SCRIPT.md` and `docs/DEMO_ASSETS.md` for the verified walkthrough.
+1. `PROJECT_STATE.md` for current release status, priorities, concerns, and deferred work.
+2. `README.md` for scope, setup, outputs, and limitations.
+3. `docs/TECHNICAL_SPEC.md` and `docs/DATA_MODEL.md` for system contracts.
+4. `docs/DECISIONS.md` for architectural boundaries.
+5. `docs/DEMO_SCRIPT.md` and `docs/DEMO_ASSETS.md` for the verified walkthrough.
 
 ## Required Checks
 
