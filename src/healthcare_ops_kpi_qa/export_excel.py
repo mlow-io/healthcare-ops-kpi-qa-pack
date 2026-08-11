@@ -62,6 +62,8 @@ def export_workbook(
         ]
     )
     commentary_df = pd.DataFrame({"commentary": commentary_text.splitlines()})
+    summary_start_row = 2
+    commentary_start_row = summary_start_row + len(summary_sheet) + 3
     forecast_sheet = forecast_df[
         [
             "kpi_name",
@@ -77,8 +79,8 @@ def export_workbook(
     )
 
     with pd.ExcelWriter(workbook_path, engine="xlsxwriter") as writer:
-        summary_sheet.to_excel(writer, sheet_name="summary", index=False, startrow=2)
-        commentary_df.to_excel(writer, sheet_name="summary", index=False, startrow=12)
+        summary_sheet.to_excel(writer, sheet_name="summary", index=False, startrow=summary_start_row)
+        commentary_df.to_excel(writer, sheet_name="summary", index=False, startrow=commentary_start_row)
         all_kpis.to_excel(writer, sheet_name="kpi_detail", index=False)
         variance_sheet.to_excel(writer, sheet_name="variance", index=False)
         forecast_sheet.to_excel(writer, sheet_name="forecast", index=False)
@@ -97,6 +99,6 @@ def export_workbook(
         note_fmt = workbook.add_format({"italic": True, "text_wrap": True})
         summary_ws.write(0, 0, "Healthcare Operations KPI & QA Pack", title_fmt)
         summary_ws.write(1, 0, "Overall KPI summary", note_fmt)
-        summary_ws.write(11, 0, "Commentary preview", title_fmt)
+        summary_ws.write(commentary_start_row - 1, 0, "Commentary preview", title_fmt)
 
     return str(workbook_path)

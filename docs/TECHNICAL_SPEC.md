@@ -159,6 +159,16 @@ For each reporting month and optional cut:
 
 Compute KPI values from the canonical event fact.
 
+### Publication evidence
+
+Every refresh preserves the technical fact exports and also writes three business-readable publication files: `evidence_kpi_snapshot.csv`, `evidence_validation_issue.csv`, and `evidence_forecast.csv`.
+
+- KPI and forecast evidence replaces database IDs with stable KPI codes and explicit overall, market, or team cut labels.
+- Validation evidence retains stable row references, rule names, severity, messages, and workflow status.
+- Publication evidence excludes run, source, staging, dimension, issue, and refresh-timestamp identifiers.
+- Rows use a fixed schema and deterministic sort order so repeated refreshes of unchanged business facts are byte-identical.
+- Runtime facts and SQLite remain the audit sources of truth and keep their internal keys.
+
 ## KPI formulas
 
 | KPI code | Formula |
@@ -263,12 +273,13 @@ Persisted draft artifact contract:
 
 Current dashboard pages:
 
-- Overview
+- Executive summary
+- KPI definitions
 - Trends
-- Breakdowns
-- Forecasts
-- Validation
-- Executive review
+- Market & team
+- QA & tie-outs
+- Forecast assumptions
+- Review packet
 
 Preferred implementation: Streamlit with SQL-backed extracts from the mart tables.
 
@@ -276,4 +287,10 @@ Current status:
 
 - implemented
 - trend views use the latest successful run per reporting period rather than every rerun
-- executive review shows deterministic commentary plus the latest LLM draft metadata when available
+- persistent run, market, team, and source filters are applied only where the persisted V1 data grain supports them
+- executive summary uses persisted KPI snapshot values, prior values, and variances, with a run-level trust state that distinguishes Ready, Ready with reviewable exceptions, and Not ready
+- KPI formulas are read from `config/kpi_definitions.yml` rather than duplicated in the dashboard
+- favorable, unfavorable, and neutral variance presentation is derived from the configured KPI target direction; rate variance is displayed in percentage points
+- QA controls connect source-file inventory, staged rows, canonical events, validation issues, persisted snapshots, workbook availability, and a direct workbook-summary comparison against persisted overall snapshot values
+- forecast views use persisted actual history plus the persisted forecast point and range; the dashboard does not generate forecast values
+- review packet shows deterministic commentary separately from optional LLM draft metadata, states that human review is required for drafts, and provides matching selected-run downloads

@@ -22,9 +22,9 @@ outputs/*
 !outputs/2026-04/
 outputs/2026-04/*
 !outputs/2026-04/healthcare_ops_kpi_qa_pack_2026_04.xlsx
-!outputs/2026-04/fact_kpi_snapshot.csv
-!outputs/2026-04/fact_validation_issue.csv
-!outputs/2026-04/fact_forecast.csv
+!outputs/2026-04/evidence_kpi_snapshot.csv
+!outputs/2026-04/evidence_validation_issue.csv
+!outputs/2026-04/evidence_forecast.csv
 !outputs/2026-04/commentary_preview.txt
 data/raw/*
 data/processed/*

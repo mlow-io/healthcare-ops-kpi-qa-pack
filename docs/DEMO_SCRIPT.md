@@ -30,6 +30,7 @@ Say:
 
 Point out:
 
+- the `Ready with reviewable exceptions` trust state: the refresh completed, but `14` logged validation exceptions still require review
 - `5` canonical work items in the current period
 - `20%` completion rate
 - `4` open backlog items
@@ -50,7 +51,7 @@ Reference the issue mix:
 
 Say:
 
-`This is where the project proves controls thinking. Bad data is visible, counted, and traceable, but it does not silently poison KPI calculations.`
+`The trust chain connects source receipt, staging, canonical events, persisted snapshots, validation exceptions, and the exported workbook. Bad data is visible, counted, and traceable, but it does not silently poison KPI calculations.`
 
 4. Show the Executive Review page.
 
@@ -62,7 +63,7 @@ Say:
 
 Say:
 
-`Forecasts are intentionally simple: a rolling three-period average for stable volume and backlog metrics. The short synthetic history does not support a more complex forecasting claim.`
+`Actual history is shown separately from the next-period point forecast and observed range. Forecasts are intentionally simple: a rolling three-period average for stable volume and backlog metrics. The short synthetic history does not support a more complex forecasting claim.`
 
 ## Technical review points
 

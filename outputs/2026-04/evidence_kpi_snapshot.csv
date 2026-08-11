@@ -1,0 +1,73 @@
+reporting_period,cut_type,cut_name,kpi_code,kpi_name,actual_value,target_value,prior_period_value,variance_value,variance_pct,numerator_value,denominator_value,notes
+2026-04,overall,All,avg_turnaround_days,Average Turnaround Days,5,,5,0,0,5,,Computed for 2026-04 cut `overall`.
+2026-04,overall,All,backlog_over_sla_count,Backlog Over SLA Count,1,,1,0,0,1,,Computed for 2026-04 cut `overall`.
+2026-04,overall,All,completed_records,Completed Records,1,,2,-1,-0.5,1,,Computed for 2026-04 cut `overall`.
+2026-04,overall,All,completion_rate,Completion Rate,0.2,,0.4,-0.2,-0.5,1,5,Computed for 2026-04 cut `overall`.
+2026-04,overall,All,open_backlog_count,Open Backlog Count,4,,3,1,0.333333333333,4,,Computed for 2026-04 cut `overall`.
+2026-04,overall,All,qa_issue_rate,QA Issue Rate,0.2,,0.2,0,0,1,5,Computed for 2026-04 cut `overall`.
+2026-04,overall,All,required_field_completeness_rate,Required Field Completeness Rate,0.8,,0.8,0,0,4,5,Computed for 2026-04 cut `overall`.
+2026-04,overall,All,total_records_received,Total Records Received,5,,5,0,0,5,,Computed for 2026-04 cut `overall`.
+2026-04,overall,All,unique_npi_rate,Unique NPI Rate,0.8,,0.8,0,0,4,5,Computed for 2026-04 cut `overall`.
+2026-04,market,Chattanooga,avg_turnaround_days,Average Turnaround Days,0,,4,-4,-1,0,,Computed for 2026-04 cut `market::Chattanooga`.
+2026-04,market,Chattanooga,backlog_over_sla_count,Backlog Over SLA Count,0,,0,0,,0,,Computed for 2026-04 cut `market::Chattanooga`.
+2026-04,market,Chattanooga,completed_records,Completed Records,0,,1,-1,-1,0,,Computed for 2026-04 cut `market::Chattanooga`.
+2026-04,market,Chattanooga,completion_rate,Completion Rate,0,,1,-1,-1,0,1,Computed for 2026-04 cut `market::Chattanooga`.
+2026-04,market,Chattanooga,open_backlog_count,Open Backlog Count,1,,0,1,,1,,Computed for 2026-04 cut `market::Chattanooga`.
+2026-04,market,Chattanooga,qa_issue_rate,QA Issue Rate,0,,0,0,,0,1,Computed for 2026-04 cut `market::Chattanooga`.
+2026-04,market,Chattanooga,required_field_completeness_rate,Required Field Completeness Rate,1,,1,0,0,1,1,Computed for 2026-04 cut `market::Chattanooga`.
+2026-04,market,Chattanooga,total_records_received,Total Records Received,1,,1,0,0,1,,Computed for 2026-04 cut `market::Chattanooga`.
+2026-04,market,Chattanooga,unique_npi_rate,Unique NPI Rate,1,,1,0,0,1,1,Computed for 2026-04 cut `market::Chattanooga`.
+2026-04,market,Knoxville,avg_turnaround_days,Average Turnaround Days,0,,0,0,,0,,Computed for 2026-04 cut `market::Knoxville`.
+2026-04,market,Knoxville,backlog_over_sla_count,Backlog Over SLA Count,0,,0,0,,0,,Computed for 2026-04 cut `market::Knoxville`.
+2026-04,market,Knoxville,completed_records,Completed Records,0,,0,0,,0,,Computed for 2026-04 cut `market::Knoxville`.
+2026-04,market,Knoxville,completion_rate,Completion Rate,0,,0,0,,0,1,Computed for 2026-04 cut `market::Knoxville`.
+2026-04,market,Knoxville,open_backlog_count,Open Backlog Count,1,,1,0,0,1,,Computed for 2026-04 cut `market::Knoxville`.
+2026-04,market,Knoxville,qa_issue_rate,QA Issue Rate,0,,0,0,,0,1,Computed for 2026-04 cut `market::Knoxville`.
+2026-04,market,Knoxville,required_field_completeness_rate,Required Field Completeness Rate,1,,1,0,0,1,1,Computed for 2026-04 cut `market::Knoxville`.
+2026-04,market,Knoxville,total_records_received,Total Records Received,1,,1,0,0,1,,Computed for 2026-04 cut `market::Knoxville`.
+2026-04,market,Knoxville,unique_npi_rate,Unique NPI Rate,1,,1,0,0,1,1,Computed for 2026-04 cut `market::Knoxville`.
+2026-04,market,Memphis,avg_turnaround_days,Average Turnaround Days,0,,0,0,,0,,Computed for 2026-04 cut `market::Memphis`.
+2026-04,market,Memphis,backlog_over_sla_count,Backlog Over SLA Count,0,,0,0,,0,,Computed for 2026-04 cut `market::Memphis`.
+2026-04,market,Memphis,completed_records,Completed Records,0,,0,0,,0,,Computed for 2026-04 cut `market::Memphis`.
+2026-04,market,Memphis,completion_rate,Completion Rate,0,,0,0,,0,1,Computed for 2026-04 cut `market::Memphis`.
+2026-04,market,Memphis,open_backlog_count,Open Backlog Count,1,,1,0,0,1,,Computed for 2026-04 cut `market::Memphis`.
+2026-04,market,Memphis,qa_issue_rate,QA Issue Rate,0,,0,0,,0,1,Computed for 2026-04 cut `market::Memphis`.
+2026-04,market,Memphis,required_field_completeness_rate,Required Field Completeness Rate,0,,0,0,,0,1,Computed for 2026-04 cut `market::Memphis`.
+2026-04,market,Memphis,total_records_received,Total Records Received,1,,1,0,0,1,,Computed for 2026-04 cut `market::Memphis`.
+2026-04,market,Memphis,unique_npi_rate,Unique NPI Rate,0,,0,0,,0,1,Computed for 2026-04 cut `market::Memphis`.
+2026-04,market,Nashville,avg_turnaround_days,Average Turnaround Days,5,,6,-1,-0.166666666667,5,,Computed for 2026-04 cut `market::Nashville`.
+2026-04,market,Nashville,backlog_over_sla_count,Backlog Over SLA Count,1,,1,0,0,1,,Computed for 2026-04 cut `market::Nashville`.
+2026-04,market,Nashville,completed_records,Completed Records,1,,1,0,0,1,,Computed for 2026-04 cut `market::Nashville`.
+2026-04,market,Nashville,completion_rate,Completion Rate,0.5,,0.5,0,0,1,2,Computed for 2026-04 cut `market::Nashville`.
+2026-04,market,Nashville,open_backlog_count,Open Backlog Count,1,,1,0,0,1,,Computed for 2026-04 cut `market::Nashville`.
+2026-04,market,Nashville,qa_issue_rate,QA Issue Rate,0.5,,0.5,0,0,1,2,Computed for 2026-04 cut `market::Nashville`.
+2026-04,market,Nashville,required_field_completeness_rate,Required Field Completeness Rate,1,,1,0,0,2,2,Computed for 2026-04 cut `market::Nashville`.
+2026-04,market,Nashville,total_records_received,Total Records Received,2,,2,0,0,2,,Computed for 2026-04 cut `market::Nashville`.
+2026-04,market,Nashville,unique_npi_rate,Unique NPI Rate,1,,1,0,0,2,2,Computed for 2026-04 cut `market::Nashville`.
+2026-04,team,TEAM_A,avg_turnaround_days,Average Turnaround Days,5,,6,-1,-0.166666666667,5,,Computed for 2026-04 cut `team::TEAM_A`.
+2026-04,team,TEAM_A,backlog_over_sla_count,Backlog Over SLA Count,1,,1,0,0,1,,Computed for 2026-04 cut `team::TEAM_A`.
+2026-04,team,TEAM_A,completed_records,Completed Records,1,,1,0,0,1,,Computed for 2026-04 cut `team::TEAM_A`.
+2026-04,team,TEAM_A,completion_rate,Completion Rate,0.5,,0.5,0,0,1,2,Computed for 2026-04 cut `team::TEAM_A`.
+2026-04,team,TEAM_A,open_backlog_count,Open Backlog Count,1,,1,0,0,1,,Computed for 2026-04 cut `team::TEAM_A`.
+2026-04,team,TEAM_A,qa_issue_rate,QA Issue Rate,0.5,,0.5,0,0,1,2,Computed for 2026-04 cut `team::TEAM_A`.
+2026-04,team,TEAM_A,required_field_completeness_rate,Required Field Completeness Rate,1,,1,0,0,2,2,Computed for 2026-04 cut `team::TEAM_A`.
+2026-04,team,TEAM_A,total_records_received,Total Records Received,2,,2,0,0,2,,Computed for 2026-04 cut `team::TEAM_A`.
+2026-04,team,TEAM_A,unique_npi_rate,Unique NPI Rate,1,,1,0,0,2,2,Computed for 2026-04 cut `team::TEAM_A`.
+2026-04,team,TEAM_B,avg_turnaround_days,Average Turnaround Days,0,,0,0,,0,,Computed for 2026-04 cut `team::TEAM_B`.
+2026-04,team,TEAM_B,backlog_over_sla_count,Backlog Over SLA Count,0,,0,0,,0,,Computed for 2026-04 cut `team::TEAM_B`.
+2026-04,team,TEAM_B,completed_records,Completed Records,0,,0,0,,0,,Computed for 2026-04 cut `team::TEAM_B`.
+2026-04,team,TEAM_B,completion_rate,Completion Rate,0,,0,0,,0,2,Computed for 2026-04 cut `team::TEAM_B`.
+2026-04,team,TEAM_B,open_backlog_count,Open Backlog Count,2,,2,0,0,2,,Computed for 2026-04 cut `team::TEAM_B`.
+2026-04,team,TEAM_B,qa_issue_rate,QA Issue Rate,0,,0,0,,0,2,Computed for 2026-04 cut `team::TEAM_B`.
+2026-04,team,TEAM_B,required_field_completeness_rate,Required Field Completeness Rate,0.5,,0.5,0,0,1,2,Computed for 2026-04 cut `team::TEAM_B`.
+2026-04,team,TEAM_B,total_records_received,Total Records Received,2,,2,0,0,2,,Computed for 2026-04 cut `team::TEAM_B`.
+2026-04,team,TEAM_B,unique_npi_rate,Unique NPI Rate,0.5,,0.5,0,0,1,2,Computed for 2026-04 cut `team::TEAM_B`.
+2026-04,team,TEAM_C,avg_turnaround_days,Average Turnaround Days,0,,4,-4,-1,0,,Computed for 2026-04 cut `team::TEAM_C`.
+2026-04,team,TEAM_C,backlog_over_sla_count,Backlog Over SLA Count,0,,0,0,,0,,Computed for 2026-04 cut `team::TEAM_C`.
+2026-04,team,TEAM_C,completed_records,Completed Records,0,,1,-1,-1,0,,Computed for 2026-04 cut `team::TEAM_C`.
+2026-04,team,TEAM_C,completion_rate,Completion Rate,0,,1,-1,-1,0,1,Computed for 2026-04 cut `team::TEAM_C`.
+2026-04,team,TEAM_C,open_backlog_count,Open Backlog Count,1,,0,1,,1,,Computed for 2026-04 cut `team::TEAM_C`.
+2026-04,team,TEAM_C,qa_issue_rate,QA Issue Rate,0,,0,0,,0,1,Computed for 2026-04 cut `team::TEAM_C`.
+2026-04,team,TEAM_C,required_field_completeness_rate,Required Field Completeness Rate,1,,1,0,0,1,1,Computed for 2026-04 cut `team::TEAM_C`.
+2026-04,team,TEAM_C,total_records_received,Total Records Received,1,,1,0,0,1,,Computed for 2026-04 cut `team::TEAM_C`.
+2026-04,team,TEAM_C,unique_npi_rate,Unique NPI Rate,1,,1,0,0,1,1,Computed for 2026-04 cut `team::TEAM_C`.
