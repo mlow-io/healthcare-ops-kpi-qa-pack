@@ -1,0 +1,15 @@
+reporting_period,row_identifier,issue_type,severity,issue_message,status
+2026-04,onboarding_tracker_2026_04.xlsx:3,invalid_date_sequence,error,Completed date cannot be earlier than received date.,open
+2026-04,onboarding_tracker_2026_04.xlsx:3,invalid_npi_format,error,NPI `12345` must contain exactly 10 digits.,open
+2026-04,provider_roster_2026_04.csv:4,invalid_npi_format,error,NPI `12345` must contain exactly 10 digits.,open
+2026-04,provider_roster_2026_04.csv:5,missing_required_field,error,Required field `provider_npi` is missing.,open
+2026-04,directory_audit_2026_04.csv:3,audit_onboarding_mismatch,warning,Directory audit shows `published` before onboarding is completed.,open
+2026-04,directory_audit_2026_04.csv:3,audit_onboarding_mismatch,warning,Passing audit result found while onboarding is still incomplete.,open
+2026-04,provider_roster_2026_04.csv:2,duplicate_provider_market,warning,Duplicate provider-market-workflow combination detected within the same source type.,open
+2026-04,provider_roster_2026_04.csv:3,duplicate_provider_market,warning,Duplicate provider-market-workflow combination detected within the same source type.,open
+2026-04,directory_audit_2026_04.csv:3,invalid_npi_checksum,warning,NPI `1234567890` failed checksum validation.,open
+2026-04,onboarding_tracker_2026_04.xlsx:4,invalid_npi_checksum,warning,NPI `1234567890` failed checksum validation.,open
+2026-04,provider_roster_2026_04.csv:6,invalid_npi_checksum,warning,NPI `1234567890` failed checksum validation.,open
+2026-04,onboarding_tracker_2026_04.xlsx:4,invalid_status_value,warning,Status `mystery_status` is not in the configured status set.,open
+2026-04,provider_roster_2026_04.csv:6,invalid_status_value,warning,Status `mystery_status` is not in the configured status set.,open
+2026-04,1234567802,stale_backlog_record,warning,"Provider `1234567802` backlog age is 60 days, which exceeds the SLA threshold of 30.",open

@@ -1,0 +1,33 @@
+reporting_period,forecast_period,cut_type,cut_name,kpi_code,kpi_name,model_name,forecast_value,lower_bound,upper_bound
+2026-04,2026-05-31,overall,All,backlog_over_sla_count,Backlog Over SLA Count,rolling_avg_3,1,1,1
+2026-04,2026-05-31,overall,All,completed_records,Completed Records,rolling_avg_3,1,0,2
+2026-04,2026-05-31,overall,All,open_backlog_count,Open Backlog Count,rolling_avg_3,4,3,5
+2026-04,2026-05-31,overall,All,total_records_received,Total Records Received,rolling_avg_3,5,5,5
+2026-04,2026-05-31,market,Chattanooga,backlog_over_sla_count,Backlog Over SLA Count,rolling_avg_3,0,0,0
+2026-04,2026-05-31,market,Chattanooga,completed_records,Completed Records,rolling_avg_3,0.333333333333,0,1
+2026-04,2026-05-31,market,Chattanooga,open_backlog_count,Open Backlog Count,rolling_avg_3,0.666666666667,0,1
+2026-04,2026-05-31,market,Chattanooga,total_records_received,Total Records Received,rolling_avg_3,1,1,1
+2026-04,2026-05-31,market,Knoxville,backlog_over_sla_count,Backlog Over SLA Count,rolling_avg_3,0,0,0
+2026-04,2026-05-31,market,Knoxville,completed_records,Completed Records,rolling_avg_3,0,0,0
+2026-04,2026-05-31,market,Knoxville,open_backlog_count,Open Backlog Count,rolling_avg_3,1,1,1
+2026-04,2026-05-31,market,Knoxville,total_records_received,Total Records Received,rolling_avg_3,1,1,1
+2026-04,2026-05-31,market,Memphis,backlog_over_sla_count,Backlog Over SLA Count,rolling_avg_3,0,0,0
+2026-04,2026-05-31,market,Memphis,completed_records,Completed Records,rolling_avg_3,0,0,0
+2026-04,2026-05-31,market,Memphis,open_backlog_count,Open Backlog Count,rolling_avg_3,1,1,1
+2026-04,2026-05-31,market,Memphis,total_records_received,Total Records Received,rolling_avg_3,1,1,1
+2026-04,2026-05-31,market,Nashville,backlog_over_sla_count,Backlog Over SLA Count,rolling_avg_3,1,1,1
+2026-04,2026-05-31,market,Nashville,completed_records,Completed Records,rolling_avg_3,0.666666666667,0,1
+2026-04,2026-05-31,market,Nashville,open_backlog_count,Open Backlog Count,rolling_avg_3,1.33333333333,1,2
+2026-04,2026-05-31,market,Nashville,total_records_received,Total Records Received,rolling_avg_3,2,2,2
+2026-04,2026-05-31,team,TEAM_A,backlog_over_sla_count,Backlog Over SLA Count,rolling_avg_3,1,1,1
+2026-04,2026-05-31,team,TEAM_A,completed_records,Completed Records,rolling_avg_3,0.666666666667,0,1
+2026-04,2026-05-31,team,TEAM_A,open_backlog_count,Open Backlog Count,rolling_avg_3,1.33333333333,1,2
+2026-04,2026-05-31,team,TEAM_A,total_records_received,Total Records Received,rolling_avg_3,2,2,2
+2026-04,2026-05-31,team,TEAM_B,backlog_over_sla_count,Backlog Over SLA Count,rolling_avg_3,0,0,0
+2026-04,2026-05-31,team,TEAM_B,completed_records,Completed Records,rolling_avg_3,0,0,0
+2026-04,2026-05-31,team,TEAM_B,open_backlog_count,Open Backlog Count,rolling_avg_3,2,2,2
+2026-04,2026-05-31,team,TEAM_B,total_records_received,Total Records Received,rolling_avg_3,2,2,2
+2026-04,2026-05-31,team,TEAM_C,backlog_over_sla_count,Backlog Over SLA Count,rolling_avg_3,0,0,0
+2026-04,2026-05-31,team,TEAM_C,completed_records,Completed Records,rolling_avg_3,0.333333333333,0,1
+2026-04,2026-05-31,team,TEAM_C,open_backlog_count,Open Backlog Count,rolling_avg_3,0.666666666667,0,1
+2026-04,2026-05-31,team,TEAM_C,total_records_received,Total Records Received,rolling_avg_3,1,1,1
