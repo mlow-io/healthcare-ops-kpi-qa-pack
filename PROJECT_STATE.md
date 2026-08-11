@@ -18,7 +18,7 @@ For a portfolio reviewer, the strongest signals are operational controls, source
 - Deterministic publication CSVs use stable business identifiers while runtime facts retain audit and surrogate keys.
 - SQLite is the reproducible default. PostgreSQL is optional and not exercised in CI.
 - Deterministic commentary is canonical. Optional LLM drafts are separate and require human review.
-- The verified release content is on `main`; the intended annotated release tag is `v0.1.0`.
+- The verified release content is on `main` and designated as release `v0.1.0`.
 
 ## Next Three Priorities
 
