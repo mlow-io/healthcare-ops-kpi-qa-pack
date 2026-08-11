@@ -26,7 +26,7 @@ A built-in three-period demo dataset is available for `2026-02`, `2026-03`, and 
 - Validation report with row-level issues and run-level counts
 - KPI mart with monthly snapshots by market and team
 - Excel workbook with summary, detail, variance, tie-out, and exceptions tabs
-- Dashboard views for overview, trends, segment cuts, and QA exceptions
+- Monthly Operations Cockpit with persisted run context, KPI definitions, trend and segment analysis, QA tie-outs, forecast assumptions, and a review packet
 - Draft commentary for a monthly operations review
 
 ## Architecture
@@ -103,14 +103,31 @@ streamlit run src/healthcare_ops_kpi_qa/dashboard.py
 
 Run these commands from the repository root. The deterministic demo does not require credentials or external services.
 
+## Monthly Operations Cockpit
+
+The Streamlit cockpit is a read-only operational review surface over persisted SQLite mart data. Select one successful reporting run, then apply market, team, and source filters where the underlying V1 data grain supports them.
+
+- **Executive summary:** run health, headline KPI values, prior-period context, and persisted variance.
+- **Briefing trust state:** `Ready`, `Ready with reviewable exceptions`, or `Not ready`, with an explicit next operational action. Refresh success is supporting evidence, not a claim that the period is exception-free.
+- **KPI definitions:** formulas and display rules from `config/kpi_definitions.yml`, plus selected-cut numerator/denominator detail.
+- **Trends and market/team:** latest successful run per period with direction-aware, human-readable comparisons and explicit unavailable states for unsupported combined cuts.
+- **QA & tie-outs:** a source-to-workbook trust chain with source receipt, staging, canonical events, persisted snapshots, validation exceptions, workbook availability, and workbook-summary value parity.
+- **Forecast assumptions:** actual history, a distinct next-period forecast point, observed range, transparent three-period rolling-average method, and limits.
+- **Review packet:** deterministic commentary, separately labeled optional LLM draft status requiring human review, selected-run metadata, and matching downloads including the audit workbook.
+
+All displayed operations data is synthetic. The cockpit does not recalculate KPIs, alter the refresh pipeline, or display local file paths.
+
 The refresh writes:
 
 - SQLite data to `data/processed/healthcare_ops_kpi_qa.sqlite3`
 - event, KPI, and validation CSV outputs to `outputs/YYYY-MM/`
 - forecast CSV output to `outputs/YYYY-MM/fact_forecast.csv`
+- deterministic, business-readable KPI, validation, and forecast evidence to `outputs/YYYY-MM/evidence_*.csv`
 - an audit workbook to `outputs/YYYY-MM/healthcare_ops_kpi_qa_pack_YYYY_MM.xlsx`
 - a commentary preview to `outputs/YYYY-MM/commentary_preview.txt`
 - optional LLM draft artifacts to `outputs/YYYY-MM/llm_commentary_*` when explicitly enabled and configured
+
+Runtime fact exports and the SQLite database retain run and surrogate keys for auditability. The versioned April `evidence_*.csv` files instead use stable KPI codes, market names, team codes, and row references so identical business facts reproduce byte-for-byte without exposing volatile database identifiers or refresh timestamps. The versioned workbook and screenshots remain selected-run artifacts rather than byte-stable exports.
 
 The LLM path is not part of the deterministic demo. It requires an `OPENAI_API_KEY`, writes separate draft/review artifacts, and never replaces the templated commentary:
 
