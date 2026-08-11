@@ -1,6 +1,6 @@
 # Project State
 
-Updated: 2026-08-10
+Updated: 2026-08-11
 
 This is the living execution summary for the repository. Keep it short and current. Replace stale statements instead of appending a work journal; Git history preserves earlier versions.
 
@@ -12,18 +12,18 @@ For a portfolio reviewer, the strongest signals are operational controls, source
 
 ## Current State
 
-- V1 and Phase 2 capabilities are implemented on the `feat/monthly-operations-cockpit` release branch.
+- V1 and Phase 2 capabilities are merged to `main` in PR #1.
 - The cockpit includes executive summary, KPI definitions, trend and segment views, QA tie-outs, forecast assumptions, and a review packet.
 - A compact April evidence set and five dashboard screenshots are versioned.
 - Deterministic publication CSVs use stable business identifiers while runtime facts retain audit and surrogate keys.
 - SQLite is the reproducible default. PostgreSQL is optional and not exercised in CI.
 - Deterministic commentary is canonical. Optional LLM drafts are separate and require human review.
-- The release branch is represented by an open draft PR and is not yet merged or tagged.
+- The verified release content is on `main`; the intended annotated release tag is `v0.1.0`.
 
 ## Next Three Priorities
 
-1. Complete final release review, merge the current draft PR, and tag the resulting portfolio V1.
-2. Improve the public case-study presentation only where it helps an employer understand the implemented controls and evidence quickly.
+1. Improve the public case-study presentation only where it helps an employer understand the implemented controls and evidence quickly.
+2. Collect reviewer feedback on whether the workflow, controls, and business decisions are understandable in a short portfolio review.
 3. Keep operating-history expansion deferred until the released case study has been evaluated as a portfolio artifact.
 
 ## Current Concerns
