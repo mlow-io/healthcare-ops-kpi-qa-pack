@@ -11,12 +11,12 @@
 ## Versioned output evidence
 
 - Workbook: `outputs/2026-04/healthcare_ops_kpi_qa_pack_2026_04.xlsx`
-- KPI snapshots: `outputs/2026-04/fact_kpi_snapshot.csv`
-- Validation issues: `outputs/2026-04/fact_validation_issue.csv`
-- Forecast output: `outputs/2026-04/fact_forecast.csv`
+- KPI evidence: `outputs/2026-04/evidence_kpi_snapshot.csv`
+- Validation evidence: `outputs/2026-04/evidence_validation_issue.csv`
+- Forecast evidence: `outputs/2026-04/evidence_forecast.csv`
 - Commentary preview: `outputs/2026-04/commentary_preview.txt`
 
-The versioned evidence set excludes LLM artifacts. Those files are generated only when a key is configured and the optional workflow is run. Deterministic commentary remains the reproducible default.
+The three versioned CSVs are deterministic publication evidence: they use business identifiers and exclude run IDs, surrogate keys, and refresh timestamps. Runtime fact exports retain those audit fields but are not versioned. The workbook and screenshots represent one selected successful run and may change when intentionally recaptured. The evidence set excludes LLM artifacts; deterministic commentary remains the reproducible default.
 
 ## Stable demo state
 

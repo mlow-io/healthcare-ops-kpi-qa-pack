@@ -122,9 +122,12 @@ The refresh writes:
 - SQLite data to `data/processed/healthcare_ops_kpi_qa.sqlite3`
 - event, KPI, and validation CSV outputs to `outputs/YYYY-MM/`
 - forecast CSV output to `outputs/YYYY-MM/fact_forecast.csv`
+- deterministic, business-readable KPI, validation, and forecast evidence to `outputs/YYYY-MM/evidence_*.csv`
 - an audit workbook to `outputs/YYYY-MM/healthcare_ops_kpi_qa_pack_YYYY_MM.xlsx`
 - a commentary preview to `outputs/YYYY-MM/commentary_preview.txt`
 - optional LLM draft artifacts to `outputs/YYYY-MM/llm_commentary_*` when explicitly enabled and configured
+
+Runtime fact exports and the SQLite database retain run and surrogate keys for auditability. The versioned April `evidence_*.csv` files instead use stable KPI codes, market names, team codes, and row references so identical business facts reproduce byte-for-byte without exposing volatile database identifiers or refresh timestamps. The versioned workbook and screenshots remain selected-run artifacts rather than byte-stable exports.
 
 The LLM path is not part of the deterministic demo. It requires an `OPENAI_API_KEY`, writes separate draft/review artifacts, and never replaces the templated commentary:
 

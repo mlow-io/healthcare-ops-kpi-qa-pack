@@ -15,19 +15,19 @@ For a portfolio reviewer, the strongest signals are operational controls, source
 - V1 and Phase 2 capabilities are implemented on the `feat/monthly-operations-cockpit` release branch.
 - The cockpit includes executive summary, KPI definitions, trend and segment views, QA tie-outs, forecast assumptions, and a review packet.
 - A compact April evidence set and five dashboard screenshots are versioned.
+- Deterministic publication CSVs use stable business identifiers while runtime facts retain audit and surrogate keys.
 - SQLite is the reproducible default. PostgreSQL is optional and not exercised in CI.
 - Deterministic commentary is canonical. Optional LLM drafts are separate and require human review.
 - The release branch is represented by an open draft PR and is not yet merged or tagged.
 
 ## Next Three Priorities
 
-1. Decide how tracked demo evidence should handle volatile run and surrogate identifiers so reruns do not create misleading business-data changes.
-2. Complete final release review, merge the current draft PR, and tag the resulting portfolio V1.
-3. Improve the public case-study presentation only where it helps an employer understand the implemented controls and evidence quickly.
+1. Complete final release review, merge the current draft PR, and tag the resulting portfolio V1.
+2. Improve the public case-study presentation only where it helps an employer understand the implemented controls and evidence quickly.
+3. Keep operating-history expansion deferred until the released case study has been evaluated as a portfolio artifact.
 
 ## Current Concerns
 
-- Regenerating the same synthetic periods can change run IDs and dimension surrogate IDs in tracked evidence even when business facts are unchanged.
 - The committed history contains only three synthetic periods, so forecasting claims must remain modest and transparent.
 - `dashboard.py` is large; decomposition is useful maintenance work but is not a V1 release requirement.
 - PostgreSQL parity has been checked locally but is not an automated release gate.

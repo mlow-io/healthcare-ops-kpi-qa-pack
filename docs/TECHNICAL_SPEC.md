@@ -159,6 +159,16 @@ For each reporting month and optional cut:
 
 Compute KPI values from the canonical event fact.
 
+### Publication evidence
+
+Every refresh preserves the technical fact exports and also writes three business-readable publication files: `evidence_kpi_snapshot.csv`, `evidence_validation_issue.csv`, and `evidence_forecast.csv`.
+
+- KPI and forecast evidence replaces database IDs with stable KPI codes and explicit overall, market, or team cut labels.
+- Validation evidence retains stable row references, rule names, severity, messages, and workflow status.
+- Publication evidence excludes run, source, staging, dimension, issue, and refresh-timestamp identifiers.
+- Rows use a fixed schema and deterministic sort order so repeated refreshes of unchanged business facts are byte-identical.
+- Runtime facts and SQLite remain the audit sources of truth and keep their internal keys.
+
 ## KPI formulas
 
 | KPI code | Formula |

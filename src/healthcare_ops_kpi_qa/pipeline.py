@@ -19,6 +19,7 @@ from .forecast import compute_forecasts, next_period_snapshot_date_key
 from .ingest import load_field_mappings, load_period_inputs
 from .kpis import compute_kpi_snapshots, load_kpi_definitions, snapshot_date_key
 from .llm_draft import build_draft_record, build_llm_payload, generate_llm_draft
+from .publication_evidence import write_publication_evidence
 from .reference_data import load_reference_data
 from .settings import get_app_settings, get_project_paths
 from .time_utils import json_dumps, utc_now_naive
@@ -171,6 +172,15 @@ def run_refresh(period: str, include_llm_draft: bool = False) -> dict:
                 {"run_id": run_id},
             )
             decorated_forecasts = _decorate_forecasts(connection, forecasts)
+            output_paths.update(
+                write_publication_evidence(
+                    get_project_paths().outputs_dir / period,
+                    period,
+                    all_kpis,
+                    validation_output,
+                    decorated_forecasts,
+                )
+            )
             commentary_text = build_commentary_preview(period, overall_kpis, market_kpis, validation_output)
             workbook_path = export_workbook(
                 get_project_paths().outputs_dir / period / f"healthcare_ops_kpi_qa_pack_{period.replace('-', '_')}.xlsx",
@@ -846,7 +856,7 @@ def _decorate_snapshots(connection: Connection, snapshots: pd.DataFrame, overall
     if snapshots.empty:
         return pd.DataFrame()
 
-    kpi_lookup = read_sql_frame(connection, "select kpi_id, kpi_name from dim_kpi")
+    kpi_lookup = read_sql_frame(connection, "select kpi_id, kpi_code, kpi_name from dim_kpi")
     market_lookup = read_sql_frame(connection, "select market_id, market_name from dim_market")
     team_lookup = read_sql_frame(connection, "select team_id, team_code from dim_team")
 
@@ -871,7 +881,7 @@ def _decorate_forecasts(connection: Connection, forecasts: pd.DataFrame) -> pd.D
     if forecasts.empty:
         return pd.DataFrame()
 
-    kpi_lookup = read_sql_frame(connection, "select kpi_id, kpi_name from dim_kpi")
+    kpi_lookup = read_sql_frame(connection, "select kpi_id, kpi_code, kpi_name from dim_kpi")
     market_lookup = read_sql_frame(connection, "select market_id, market_name from dim_market")
     team_lookup = read_sql_frame(connection, "select team_id, team_code from dim_team")
 
