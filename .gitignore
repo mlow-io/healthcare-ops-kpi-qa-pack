@@ -19,6 +19,7 @@ build/
 *.p12
 *.pfx
 outputs/*
+!outputs/Monthly_Operations_Reconciliation_Model.xlsx
 !outputs/2026-04/
 outputs/2026-04/*
 !outputs/2026-04/healthcare_ops_kpi_qa_pack_2026_04.xlsx
