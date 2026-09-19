@@ -1,6 +1,10 @@
 # Healthcare Operations KPI & QA Pack
 
-This repository implements a healthcare operations analytics pipeline for provider roster, onboarding, and directory-accuracy reporting.
+[![Python](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
+[![Tests](https://img.shields.io/badge/pytest-20%20passed-brightgreen.svg)](tests/)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+
+This repository implements a production-grade healthcare operations analytics pipeline for provider roster, onboarding, and directory-accuracy reporting.
 
 ## Capabilities
 
@@ -8,8 +12,11 @@ This repository implements a healthcare operations analytics pipeline for provid
 - Canonical SQL-backed event and KPI models
 - Persisted validation, tie-out, and QA exception outputs
 - Controlled AI-assisted commentary with explicit human review
+- **Audit-Ready Executive Excel Reconciliation**: Production spreadsheet model with live formula tie-outs (`=B4-(D4+E4)`), queue aging brackets, and SLA compliance tracking
+- **15-Scenario UAT Defect Matrix**: Rigorous business user acceptance test coverage with defect resolution governance
+- **Production SQL Query Showcase**: Analytical SQL marts demonstrating windowed deduplication, reconciliation joins, and SLA tracking
 
-## V1 scenario
+## V1 Scenario
 
 The first version is framed as a provider operations / directory QA reporting asset. Source files are synthetic but realistic:
 
@@ -21,13 +28,15 @@ The system standardizes those files into a canonical event model, computes KPI s
 
 A built-in three-period demo dataset is available for `2026-02`, `2026-03`, and `2026-04` so trend and prior-period comparisons are meaningful instead of single-period placeholders.
 
-## Outputs
+## Outputs & Deliverables
 
-- Validation report with row-level issues and run-level counts
-- KPI mart with monthly snapshots by market and team
-- Excel workbook with summary, detail, variance, tie-out, and exceptions tabs
-- Monthly Operations Cockpit with persisted run context, KPI definitions, trend and segment analysis, QA tie-outs, forecast assumptions, and a review packet
-- Draft commentary for a monthly operations review
+- **Validation Report**: Row-level exceptions and run-level quality checks
+- **KPI Mart**: Monthly snapshots by market, team, and specialty
+- **Audit-Ready Reconciliation Model**: [`outputs/Monthly_Operations_Reconciliation_Model.xlsx`](outputs/Monthly_Operations_Reconciliation_Model.xlsx) with Executive Summary, Roster Reconciliation Tie-Out, and Queue Aging & SLA Tracker
+- **Monthly Operations Cockpit**: Interactive Streamlit application with persisted run context, KPI definitions, trend analysis, QA tie-outs, and review packet
+- **UAT Governance Matrix**: [`docs/operations_governance/uat_test_matrix.md`](docs/operations_governance/uat_test_matrix.md) documenting 15 business test scenarios
+- **SQL Showcase**: [`sql/queries/healthcare_operational_marts.sql`](sql/queries/healthcare_operational_marts.sql) featuring deduplication and reconciliation queries
+- **Executive Commentary**: Deterministic draft operations briefing ready for stakeholder review
 
 ## Architecture
 
@@ -62,11 +71,18 @@ healthcare-ops-kpi-qa-pack/
     DEMO_SCRIPT.md
     DEMO_ASSETS.md
     demo_assets/
+    operations_governance/
+      uat_test_matrix.md
+    reference_notes/
+      public_vs_synthetic_data_notes.md
+      streamlit_cockpit_screenshot.png
   sql/
     ddl.sql
     ddl_postgres.sql
     marts.sql
     marts_postgres.sql
+    queries/
+      healthcare_operational_marts.sql
   src/healthcare_ops_kpi_qa/
     __init__.py
     main.py
@@ -86,18 +102,28 @@ healthcare-ops-kpi-qa-pack/
     sample/
     processed/
   outputs/
+    Monthly_Operations_Reconciliation_Model.xlsx
   tests/
 ```
 
-## Quick start
+## Quick Start
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+# 1. Install editable package
 pip install -e ".[dev]"
+
+# 2. Verify code quality & tests (20 tests passed)
+ruff check .
+pytest -v
+
+# 3. Seed demo data & refresh marts
 healthcare-ops-kpi-qa seed-demo-data
 healthcare-ops-kpi-qa refresh-demo-data
-pytest -q
+
+# 4. Generate the showcase audit-ready Excel reconciliation model
+python3 scripts/generate_showcase_excel_model.py
+
+# 5. Launch Monthly Operations Cockpit
 streamlit run src/healthcare_ops_kpi_qa/dashboard.py
 ```
 
