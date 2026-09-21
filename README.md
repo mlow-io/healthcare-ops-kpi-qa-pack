@@ -1,5 +1,6 @@
 # Healthcare Operations KPI & QA Pack
 
+[![CI](https://github.com/mlow-io/healthcare-ops-kpi-qa-pack/actions/workflows/ci.yml/badge.svg)](https://github.com/mlow-io/healthcare-ops-kpi-qa-pack/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
 [![Tests](https://img.shields.io/badge/pytest-20%20passed-brightgreen.svg)](tests/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
