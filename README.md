@@ -5,7 +5,7 @@
 [![Tests](https://img.shields.io/badge/pytest-20%20passed-brightgreen.svg)](tests/)
 [![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-This repository implements a production-grade healthcare operations analytics pipeline for provider roster, onboarding, and directory-accuracy reporting.
+This repository implements a deterministic healthcare operations analytics pipeline using synthetic demo inputs for provider roster, onboarding, and directory-accuracy reporting.
 
 ## Capabilities
 
@@ -13,9 +13,9 @@ This repository implements a production-grade healthcare operations analytics pi
 - Canonical SQL-backed event and KPI models
 - Persisted validation, tie-out, and QA exception outputs
 - Controlled AI-assisted commentary with explicit human review
-- **Audit-Ready Executive Excel Reconciliation**: Production spreadsheet model with live formula tie-outs (`=B4-(D4+E4)`), queue aging brackets, and SLA compliance tracking
-- **15-Scenario UAT Defect Matrix**: Rigorous business user acceptance test coverage with defect resolution governance
-- **Production SQL Query Showcase**: Analytical SQL marts demonstrating windowed deduplication, reconciliation joins, and SLA tracking
+- **Audit-Ready Executive Excel Reconciliation**: Structured spreadsheet model with live formula tie-outs (`=B4-(D4+E4)`), queue aging brackets, and SLA compliance tracking
+- **15-Scenario UAT Defect Matrix**: Synthetic business user acceptance test coverage with defect resolution governance
+- **Analytical SQL Query Showcase**: SQL marts demonstrating windowed deduplication, reconciliation joins, and SLA tracking
 
 ## V1 Scenario
 
